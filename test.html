@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WLED BLE Controller</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #000000 0%, #555555 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: white;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .status {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .status.connected {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.2);
+        }
+
+        .status.disconnected {
+            border-color: #f44336;
+            background: rgba(244, 67, 54, 0.2);
+        }
+
+        .control-group {
+            margin-bottom: 25px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .control-group h3 {
+            margin-bottom: 15px;
+            color: #fff;
+            font-size: 1.2rem;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .control-row:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            min-width: 100px;
+            font-weight: 500;
+        }
+
+        button {
+            background: linear-gradient(45deg, #222222, #444444);
+            border: none;
+            color: white;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            height: 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.3);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4ECDC4;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        input[type="color"] {
+            width: 60px;
+            height: 40px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        input[type="number"] {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            color: white;
+            padding: 8px 12px;
+            width: 80px;
+        }
+
+        .color-picker {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .value-display {
+            min-width: 40px;
+            text-align: center;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 5px 10px;
+            border-radius: 8px;
+        }
+
+        .log {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+        }
+
+        .json-command {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            color: white;
+            padding: 10px;
+            font-family: monospace;
+            resize: vertical;
+            height: 80px;
+        }
+
+        .json-command::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .connecting {
+            animation: pulse 1s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌈 WLED BLE Controller</h1>
+        
+        <div id="status" class="status disconnected">
+            <strong>Status:</strong> <span id="statusText">Disconnected</span>
+            <br><br>
+            <button id="connectBtn" onclick="connectToDevice()">Connect to WLED</button>
+            <button id="disconnectBtn" onclick="disconnectDevice()" style="display: none;">Disconnect</button>
+        </div>
+
+        <div class="control-group">
+            <h3>💡 Power & Brightness</h3>
+            <div class="control-row">
+                <label>Power:</label>
+                <button id="powerBtn" onclick="togglePower()" disabled>Turn On</button>
+            </div>
+            <div class="control-row">
+                <label>Brightness:</label>
+                <input type="range" id="brightnessSlider" min="0" max="255" value="128" 
+                       oninput="updateBrightness(this.value)" disabled>
+                <span class="value-display" id="brightnessValue">128</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3>🎨 Color Control</h3>
+            <div class="control-row">
+                <label>Color:</label>
+                <div class="color-picker">
+                    <input type="color" id="colorPicker" onchange="updateColor()" disabled>
+                    <span>R:</span><span class="value-display" id="redValue">255</span>
+                    <span>G:</span><span class="value-display" id="greenValue">0</span>
+                    <span>B:</span><span class="value-display" id="blueValue">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3>✨ Effects</h3>
+            <div class="control-row">
+                <label>Effect:</label>
+                <input type="number" id="effectInput" min="0" max="255" value="0" disabled>
+                <button onclick="updateEffect()" disabled id="effectBtn">Set Effect</button>
+            </div>
+            <div class="control-row">
+                <label>Speed:</label>
+                <input type="range" id="speedSlider" min="0" max="255" value="128" 
+                       oninput="updateSpeed(this.value)" disabled>
+                <span class="value-display" id="speedValue">128</span>
+            </div>
+            <div class="control-row">
+                <label>Intensity:</label>
+                <input type="range" id="intensitySlider" min="0" max="255" value="128" 
+                       oninput="updateIntensity(this.value)" disabled>
+                <span class="value-display" id="intensityValue">128</span>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3>📋 Presets</h3>
+            <div class="control-row">
+                <label>Preset:</label>
+                <input type="number" id="presetInput" min="0" max="255" value="1" disabled>
+                <button onclick="applyPreset()" disabled id="presetBtn">Apply Preset</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3>📝 JSON Commands</h3>
+            <textarea class="json-command" id="jsonCommand" placeholder='{"on":true,"bri":200,"seg":[{"col":[[255,0,0]]}]}' disabled></textarea>
+            <br><br>
+            <button onclick="sendJsonCommand()" disabled id="jsonBtn">Send JSON</button>
+        </div>
+
+        <div class="control-group">
+            <h3>📊 Console Log</h3>
+            <div class="log" id="logArea"></div>
+            <br>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+    </div>
+
+    <script>
+        // WLED BLE Service and Characteristic UUIDs
+        const SERVICE_UUID = '12345678-1234-1234-1234-123456789abc';
+        const CHAR_UUIDS = {
+            power: '12345678-1234-1234-1234-123456789abd',
+            brightness: '12345678-1234-1234-1234-123456789abe',
+            color: '12345678-1234-1234-1234-123456789abf',
+            effect: '12345678-1234-1234-1234-123456789ac0',
+            speed: '12345678-1234-1234-1234-123456789ab5',
+            intensity: '12345678-1234-1234-1234-123456789ab6',
+            preset: '12345678-1234-1234-1234-123456789ab7',
+            status: '12345678-1234-1234-1234-123456789ab8',
+            jsonCmd: '12345678-1234-1234-1234-123456789ab9'
+        };
+
+        let device = null;
+        let server = null;
+        let service = null;
+        let characteristics = {};
+        let isPowerOn = false;
+
+        function log(message) {
+            const logArea = document.getElementById('logArea');
+            const timestamp = new Date().toLocaleTimeString();
+            logArea.textContent += `[${timestamp}] ${message}\n`;
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('logArea').textContent = '';
+        }
+
+        function updateStatus(status, isConnected) {
+            const statusDiv = document.getElementById('status');
+            const statusText = document.getElementById('statusText');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            
+            statusText.textContent = status;
+            statusDiv.className = `status ${isConnected ? 'connected' : 'disconnected'}`;
+            
+            connectBtn.style.display = isConnected ? 'none' : 'inline-block';
+            disconnectBtn.style.display = isConnected ? 'inline-block' : 'none';
+            
+            // Enable/disable all controls
+            const controls = document.querySelectorAll('input, button:not(#connectBtn):not(#disconnectBtn):not([onclick="clearLog()"])');
+            controls.forEach(control => {
+                control.disabled = !isConnected;
+            });
+        }
+
+        async function connectToDevice() {
+            try {
+                updateStatus('Scanning for WLED-BLE...', false);
+                document.getElementById('status').classList.add('connecting');
+                
+                log('Requesting Bluetooth device...');
+                device = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: 'WLED-BLE' }],
+                    optionalServices: [SERVICE_UUID]
+                });
+
+                log(`Connecting to ${device.name}...`);
+                server = await device.gatt.connect();
+                
+                log('Getting WLED service...');
+                service = await server.getPrimaryService(SERVICE_UUID);
+                
+                log('Getting characteristics...');
+                for (const [name, uuid] of Object.entries(CHAR_UUIDS)) {
+                    try {
+                        characteristics[name] = await service.getCharacteristic(uuid);
+                        log(`✓ Got ${name} characteristic`);
+                    } catch (error) {
+                        log(`✗ Failed to get ${name} characteristic: ${error.message}`);
+                    }
+                }
+                
+                // Subscribe to status notifications
+                if (characteristics.status) {
+                    await characteristics.status.startNotifications();
+                    characteristics.status.addEventListener('characteristicvaluechanged', handleStatusUpdate);
+                    log('✓ Subscribed to status notifications');
+                }
+                
+                document.getElementById('status').classList.remove('connecting');
+                updateStatus('Connected to WLED-BLE', true);
+                log('🎉 Connected successfully!');
+                
+                // Read initial state
+                await readCurrentState();
+                
+            } catch (error) {
+                document.getElementById('status').classList.remove('connecting');
+                updateStatus('Connection failed', false);
+                log(`❌ Connection error: ${error.message}`);
+            }
+        }
+
+        async function disconnectDevice() {
+            if (device && device.gatt.connected) {
+                device.gatt.disconnect();
+                updateStatus('Disconnected', false);
+                log('Disconnected from device');
+            }
+        }
+
+        async function readCurrentState() {
+            try {
+                // Read current power state
+                if (characteristics.power) {
+                    const powerValue = await characteristics.power.readValue();
+                    isPowerOn = powerValue.getUint8(0) !== 0;
+                    document.getElementById('powerBtn').textContent = isPowerOn ? 'Turn Off' : 'Turn On';
+                }
+                
+                // Read current brightness
+                if (characteristics.brightness) {
+                    const brightnessValue = await characteristics.brightness.readValue();
+                    const brightness = brightnessValue.getUint8(0);
+                    document.getElementById('brightnessSlider').value = brightness;
+                    document.getElementById('brightnessValue').textContent = brightness;
+                }
+                
+                log('✓ Read current device state');
+            } catch (error) {
+                log(`⚠️ Error reading state: ${error.message}`);
+            }
+        }
+
+        function handleStatusUpdate(event) {
+            const value = event.target.value;
+            const decoder = new TextDecoder();
+            const statusJson = decoder.decode(value);
+            
+            try {
+                const status = JSON.parse(statusJson);
+                log(`📊 Status update: ${statusJson}`);
+                
+                // Update UI based on status
+                if (status.on !== undefined) {
+                    isPowerOn = status.on;
+                    document.getElementById('powerBtn').textContent = isPowerOn ? 'Turn Off' : 'Turn On';
+                }
+                
+                if (status.bri !== undefined) {
+                    document.getElementById('brightnessSlider').value = status.bri;
+                    document.getElementById('brightnessValue').textContent = status.bri;
+                }
+                
+                if (status.color) {
+                    const { r, g, b } = status.color;
+                    document.getElementById('redValue').textContent = r;
+                    document.getElementById('greenValue').textContent = g;
+                    document.getElementById('blueValue').textContent = b;
+                    
+                    const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+                    document.getElementById('colorPicker').value = hex;
+                }
+                
+            } catch (error) {
+                log(`⚠️ Error parsing status: ${error.message}`);
+            }
+        }
+
+        async function writeCharacteristic(charName, data) {
+            if (!characteristics[charName]) {
+                log(`❌ ${charName} characteristic not available`);
+                return;
+            }
+            
+            try {
+                await characteristics[charName].writeValue(data);
+                log(`✓ Sent ${charName} command`);
+            } catch (error) {
+                log(`❌ Error writing ${charName}: ${error.message}`);
+            }
+        }
+
+        async function togglePower() {
+            isPowerOn = !isPowerOn;
+            const data = new Uint8Array([isPowerOn ? 1 : 0]);
+            await writeCharacteristic('power', data);
+            document.getElementById('powerBtn').textContent = isPowerOn ? 'Turn Off' : 'Turn On';
+        }
+
+        async function updateBrightness(value) {
+            document.getElementById('brightnessValue').textContent = value;
+            const data = new Uint8Array([parseInt(value)]);
+            await writeCharacteristic('brightness', data);
+        }
+
+        async function updateColor() {
+            const color = document.getElementById('colorPicker').value;
+            const r = parseInt(color.substr(1, 2), 16);
+            const g = parseInt(color.substr(3, 2), 16);
+            const b = parseInt(color.substr(5, 2), 16);
+            
+            document.getElementById('redValue').textContent = r;
+            document.getElementById('greenValue').textContent = g;
+            document.getElementById('blueValue').textContent = b;
+            
+            const data = new Uint8Array([r, g, b]);
+            await writeCharacteristic('color', data);
+        }
+
+        async function updateEffect() {
+            const effectId = parseInt(document.getElementById('effectInput').value);
+            const data = new Uint8Array([effectId]);
+            await writeCharacteristic('effect', data);
+        }
+
+        async function updateSpeed(value) {
+            document.getElementById('speedValue').textContent = value;
+            const data = new Uint8Array([parseInt(value)]);
+            await writeCharacteristic('speed', data);
+        }
+
+        async function updateIntensity(value) {
+            document.getElementById('intensityValue').textContent = value;
+            const data = new Uint8Array([parseInt(value)]);
+            await writeCharacteristic('intensity', data);
+        }
+
+        async function applyPreset() {
+            const presetId = parseInt(document.getElementById('presetInput').value);
+            const data = new Uint8Array([presetId]);
+            await writeCharacteristic('preset', data);
+        }
+
+        async function sendJsonCommand() {
+            const jsonCommand = document.getElementById('jsonCommand').value.trim();
+            if (!jsonCommand) {
+                log('❌ JSON command is empty');
+                return;
+            }
+            
+            try {
+                JSON.parse(jsonCommand); // Validate JSON
+                const encoder = new TextEncoder();
+                const data = encoder.encode(jsonCommand);
+                await writeCharacteristic('jsonCmd', data);
+            } catch (error) {
+                log(`❌ Invalid JSON: ${error.message}`);
+            }
+        }
+
+        // Check for Web Bluetooth support
+        if (!navigator.bluetooth) {
+            log('❌ Web Bluetooth is not supported in this browser');
+            document.getElementById('connectBtn').disabled = true;
+            document.getElementById('connectBtn').textContent = 'Web Bluetooth Not Supported';
+        } else {
+            log('✓ Web Bluetooth is supported');
+        }
+    </script>
+</body>
+</html>
