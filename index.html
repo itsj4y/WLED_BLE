@@ -565,7 +565,14 @@
 				  document.getElementById('colorPicker').value = hex;
 				}
                 
-				document.getElementById('effectSelect').value = currentEffectId;
+				// Read current effect
+				if (characteristics.effect) {
+					const effectValue = await characteristics.effect.readValue();
+					const effectId = effectValue.getUint8(0);
+					document.getElementById('effectSelect').value = effectId;
+					log(`✓ Current effect ID: ${effectId}`);
+				}
+
 
 				
                 log('✓ Read current device state');
@@ -604,7 +611,15 @@
                     document.getElementById('colorPicker').value = hex;
                 }
 				
-				document.getElementById('effectSelect').value = currentEffectId;
+				        // ✅ Effect (try both styles)
+				if (status.fx !== undefined) {
+					document.getElementById('effectSelect').value = status.fx;
+					log(`🎨 Effect changed to ID: ${status.fx}`);
+				}
+				if (status.seg && status.seg[0] && status.seg[0].fx !== undefined) {
+					document.getElementById('effectSelect').value = status.seg[0].fx;
+					log(`🎨 Effect changed to ID: ${status.seg[0].fx}`);
+				}
 
                 
             } catch (error) {
