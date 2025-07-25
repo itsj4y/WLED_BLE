@@ -173,11 +173,11 @@
         <div class="control-group">
             <h3>💡 Power & Brightness</h3>
             <div class="control-row">
-                <label>Power:</label>
+<!--                 <label>Power:</label> -->
                 <button id="powerBtn" onclick="togglePower()" disabled>Turn On</button>
             </div>
             <div class="control-row">
-                <label>Brightness:</label>
+<!--                 <label>Brightness:</label> -->
                 <input type="range" id="brightnessSlider" min="0" max="255" value="128" 
                        oninput="updateBrightness(this.value)" disabled>
                 <span class="value-display" id="brightnessValue">128</span>
@@ -187,7 +187,7 @@
         <div class="control-group">
             <h3>🎨 Color Control</h3>
             <div class="control-row">
-                <label>Color:</label>
+<!--                 <label>Color:</label> -->
                 <div class="color-picker">
                     <input type="color" id="colorPicker" onchange="updateColor()" disabled>
                     <span>R:</span><span class="value-display" id="redValue">255</span>
@@ -200,7 +200,7 @@
         <div class="control-group">
             <h3>✨ Effects</h3>
             <div class="control-row">
-			  <label for="effectSelect">Effect:</label>
+<!-- 			  <label for="effectSelect">Effect:</label> -->
 			  <select id="effectSelect" onchange="updateEffect()" disabled>
 				<option value="0">Static</option>
 				<option value="1">Blink</option>
