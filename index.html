@@ -350,6 +350,23 @@
                     document.getElementById('brightnessSlider').value = brightness;
                     document.getElementById('brightnessValue').textContent = brightness;
                 }
+				
+							// 🎨 Color (new)
+				if (characteristics.color) {
+				  const colorValue = await characteristics.color.readValue();
+				  const r = colorValue.getUint8(0);
+				  const g = colorValue.getUint8(1);
+				  const b = colorValue.getUint8(2);
+
+				  // update R/G/B text
+				  document.getElementById('redValue').textContent = r;
+				  document.getElementById('greenValue').textContent = g;
+				  document.getElementById('blueValue').textContent = b;
+
+				  // build hex and update color picker
+				  const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+				  document.getElementById('colorPicker').value = hex;
+				}
                 
                 log('✓ Read current device state');
             } catch (error) {
