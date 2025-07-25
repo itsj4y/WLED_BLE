@@ -185,10 +185,193 @@
         <div class="control-group">
             <h3>✨ Effects</h3>
             <div class="control-row">
-                <label>Effect:</label>
-                <input type="number" id="effectInput" min="0" max="255" value="0" disabled>
-                <button onclick="updateEffect()" disabled id="effectBtn">Set Effect</button>
-            </div>
+			  <label for="effectSelect">Effect:</label>
+			  <select id="effectSelect" onchange="updateEffect()" disabled>
+				<option value="0">Static</option>
+				<option value="1">Blink</option>
+				<option value="2">Breath</option>
+				<option value="3">Color Wipe</option>
+				<option value="4">Color Wipe Random</option>
+				<option value="5">Random Color</option>
+				<option value="6">Color Sweep</option>
+				<option value="7">Dynamic</option>
+				<option value="8">Rainbow</option>
+				<option value="9">Rainbow Cycle</option>
+				<option value="10">Scan</option>
+				<option value="11">Dual Scan</option>
+				<option value="12">Fade</option>
+				<option value="13">Theater Chase</option>
+				<option value="14">Theater Chase Rainbow</option>
+				<option value="15">Running Lights</option>
+				<option value="16">Saw</option>
+				<option value="17">Twinkle</option>
+				<option value="18">Dissolve</option>
+				<option value="19">Dissolve Random</option>
+				<option value="20">Sparkle</option>
+				<option value="21">Flash Sparkle</option>
+				<option value="22">Hyper Sparkle</option>
+				<option value="23">Strobe</option>
+				<option value="24">Strobe Rainbow</option>
+				<option value="25">Multi Strobe</option>
+				<option value="26">Blink Rainbow</option>
+				<option value="27">Android</option>
+				<option value="28">Chase Color</option>
+				<option value="29">Chase Random</option>
+				<option value="30">Chase Rainbow</option>
+				<option value="31">Chase Flash</option>
+				<option value="32">Chase Flash Random</option>
+				<option value="33">Chase Rainbow White</option>
+				<option value="34">Colorful</option>
+				<option value="35">Traffic Light</option>
+				<option value="36">Color Sweep Random</option>
+				<option value="37">Running Color</option>
+				<option value="38">Aurora</option>
+				<option value="39">Running Random</option>
+				<option value="40">Larson Scanner</option>
+				<option value="41">Comet</option>
+				<option value="42">Fireworks</option>
+				<option value="43">Rain</option>
+				<option value="44">Tetrix</option>
+				<option value="45">Fire Flicker</option>
+				<option value="46">Gradient</option>
+				<option value="47">Loading</option>
+				<option value="48">Rolling Balls</option>
+				<option value="49">Fairy</option>
+				<option value="50">Two Dots</option>
+				<option value="51">Fairy Twinkle</option>
+				<option value="52">Running Dual</option>
+				<option value="53">Image</option>
+				<option value="54">Tricolor Chase</option>
+				<option value="55">Tricolor Wipe</option>
+				<option value="56">Tricolor Fade</option>
+				<option value="57">Lightning</option>
+				<option value="58">ICU</option>
+				<option value="59">Multi Comet</option>
+				<option value="60">Dual Larson Scanner</option>
+				<option value="61">Random Chase</option>
+				<option value="62">Oscillate</option>
+				<option value="63">Pride 2015</option>
+				<option value="64">Juggle</option>
+				<option value="65">Palette</option>
+				<option value="66">Fire 2012</option>
+				<option value="67">Colorwaves</option>
+				<option value="68">BPM</option>
+				<option value="69">Fillnoise8</option>
+				<option value="70">Noise16_1</option>
+				<option value="71">Noise16_2</option>
+				<option value="72">Noise16_3</option>
+				<option value="73">Noise16_4</option>
+				<option value="74">Colortwinkle</option>
+				<option value="75">Lake</option>
+				<option value="76">Meteor</option>
+				<option value="77">Copy</option>
+				<option value="78">Railway</option>
+				<option value="79">Ripple</option>
+				<option value="80">Twinklefox</option>
+				<option value="81">Twinklecat</option>
+				<option value="82">Halloween Eyes</option>
+				<option value="83">Static Pattern</option>
+				<option value="84">Tri Static Pattern</option>
+				<option value="85">Spots</option>
+				<option value="86">Spots Fade</option>
+				<option value="87">Glitter</option>
+				<option value="88">Candle</option>
+				<option value="89">Starburst</option>
+				<option value="90">Exploding Fireworks</option>
+				<option value="91">Bouncing Balls</option>
+				<option value="92">Sinelon</option>
+				<option value="93">Sinelon Dual</option>
+				<option value="94">Sinelon Rainbow</option>
+				<option value="95">Popcorn</option>
+				<option value="96">Drip</option>
+				<option value="97">Plasma</option>
+				<option value="98">Percent</option>
+				<option value="99">Ripple Rainbow</option>
+				<option value="100">Heartbeat</option>
+				<option value="101">Pacifica</option>
+				<option value="102">Candle Multi</option>
+				<option value="103">Solid Glitter</option>
+				<option value="104">Sunrise</option>
+				<option value="105">Phased</option>
+				<option value="106">TwinkleUp</option>
+				<option value="107">Noisepal</option>
+				<option value="108">Sinewave</option>
+				<option value="109">PhasedNoise</option>
+				<option value="110">Flow</option>
+				<option value="111">ChunChun</option>
+				<option value="112">Dancing Shadows</option>
+				<option value="113">Washing Machine</option>
+				<option value="114">2DPlasmaRotoZoom</option>
+				<option value="115">Blends</option>
+				<option value="116">TV Simulator</option>
+				<option value="117">Dynamic Smooth</option>
+				<option value="118">2D Spaceships</option>
+				<option value="119">2D Crazy Bees</option>
+				<option value="120">2D Ghost Rider</option>
+				<option value="121">2D Blobs</option>
+				<option value="122">2D Scroll Text</option>
+				<option value="123">2D Drift Rose</option>
+				<option value="124">2D Distortion Waves</option>
+				<option value="125">2D Soap</option>
+				<option value="126">2D Octopus</option>
+				<option value="127">2D Waving Cell</option>
+				<option value="128">Pixels</option>
+				<option value="129">Pixelwave</option>
+				<option value="130">Juggles</option>
+				<option value="131">Matripix</option>
+				<option value="132">Gravimeter</option>
+				<option value="133">Plasmoid</option>
+				<option value="134">Puddles</option>
+				<option value="135">Midnoise</option>
+				<option value="136">Noisemeter</option>
+				<option value="137">Freqwave</option>
+				<option value="138">Freqmatrix</option>
+				<option value="139">2DGEQ</option>
+				<option value="140">Waterfall</option>
+				<option value="141">Freqpixels</option>
+				<option value="142">Binmap</option>
+				<option value="143">Noisefire</option>
+				<option value="144">Puddlepeak</option>
+				<option value="145">Noisemove</option>
+				<option value="146">2DNoise</option>
+				<option value="147">Perlinmove</option>
+				<option value="148">Ripplepeak</option>
+				<option value="149">2DFireNoise</option>
+				<option value="150">2DSquared Swirl</option>
+				<option value="152">2DDNA</option>
+				<option value="153">2DMatrix</option>
+				<option value="154">2DMetaballs</option>
+				<option value="155">Freqmap</option>
+				<option value="156">Gravcenter</option>
+				<option value="157">Gravcentric</option>
+				<option value="158">Gravfreq</option>
+				<option value="159">DJLight</option>
+				<option value="160">2DFunkyPlank</option>
+				<option value="162">2DPulser</option>
+				<option value="163">Blurz</option>
+				<option value="164">2DDrift</option>
+				<option value="165">2DWaverly</option>
+				<option value="166">2DSunRadiation</option>
+				<option value="167">2DColoredBursts</option>
+				<option value="168">2DJuLia</option>
+				<option value="172">2DGameOfLife</option>
+				<option value="173">2DTartan</option>
+				<option value="174">2DPolarLights</option>
+				<option value="175">2DSwirl</option>
+				<option value="176">2DLissajous</option>
+				<option value="177">2DFrizzles</option>
+				<option value="178">2DPlasmaBall</option>
+				<option value="179">FlowStripe</option>
+				<option value="180">2DHipHotic</option>
+				<option value="181">2DSinDots</option>
+				<option value="182">2DDNASpiral</option>
+				<option value="183">2DBlackHole</option>
+				<option value="184">WaveSins</option>
+				<option value="185">RockTaves</option>
+				<option value="186">2DAkemi</option>
+				<!-- add more as needed -->
+			  </select>
+			</div>
             <div class="control-row">
                 <label>Speed:</label>
                 <input type="range" id="speedSlider" min="0" max="255" value="128" 
@@ -272,7 +455,7 @@
             disconnectBtn.style.display = isConnected ? 'inline-block' : 'none';
             
             // Enable/disable all controls
-            const controls = document.querySelectorAll('input, button:not(#connectBtn):not(#disconnectBtn):not([onclick="clearLog()"])');
+            const controls = document.querySelectorAll('input, select, button:not(#connectBtn):not(#disconnectBtn):not([onclick="clearLog()"])');
             controls.forEach(control => {
                 control.disabled = !isConnected;
             });
@@ -368,6 +551,9 @@
 				  document.getElementById('colorPicker').value = hex;
 				}
                 
+				document.getElementById('effectSelect').value = currentEffectId;
+
+				
                 log('✓ Read current device state');
             } catch (error) {
                 log(`⚠️ Error reading state: ${error.message}`);
@@ -403,6 +589,9 @@
                     const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
                     document.getElementById('colorPicker').value = hex;
                 }
+				
+				document.getElementById('effectSelect').value = currentEffectId;
+
                 
             } catch (error) {
                 log(`⚠️ Error parsing status: ${error.message}`);
@@ -451,10 +640,12 @@
         }
 
         async function updateEffect() {
-            const effectId = parseInt(document.getElementById('effectInput').value);
-            const data = new Uint8Array([effectId]);
-            await writeCharacteristic('effect', data);
-        }
+		    const select = document.getElementById('effectSelect');
+		    const effectId = parseInt(select.value);
+		    const data = new Uint8Array([effectId]);
+		    await writeCharacteristic('effect', data);
+		}
+
 
         async function updateSpeed(value) {
             document.getElementById('speedValue').textContent = value;
