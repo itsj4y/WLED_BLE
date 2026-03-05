@@ -504,6 +504,7 @@ input[type=text].ptxt { width:calc(100% - 24px); }
   <span id="ble-devname">Connecting…</span>
   <div id="ble-tx"></div>
   <button id="btn-ble-disc" onclick="bleDisconnect()">Disconnect</button>
+  <button id="btn-ble-state" onclick="requestState()" style="margin-left: 10px; background: #4CAF50;">Request State</button>
 </div>
 
 <!-- ── Main WLED UI (original structure) ─────────────────────────── -->
@@ -1312,12 +1313,14 @@ const BLE = (() => {
     getState, getInfo, getEffects, getPalettePage, getFxData, getPresets,
     postState,
     send,
+    requestState: getState,
   };
 })();
 
-// ── Public button handlers ────────────────────────────────────────────
+// ── Public button handlers ────────────────────────────────────
 function bleConnect()    { BLE.connect(); }
 function bleDisconnect() { BLE.disconnect(); }
+function requestState() { BLE.getState(); }
 
 // ═══════════════════════════════════════════════════════════════════
 // WLED UI LOGIC  (adapted from wled00/data/index.js)
