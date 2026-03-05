@@ -924,17 +924,27 @@ const BLE = (() => {
     setOverlayStatus("Connected ✓", "ok");
     document.getElementById("ble-overlay").classList.add("hidden");
     
-    // iOS compatibility: wait a bit longer before initial request
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    setTimeout(onLoad, isIOS ? 500 : 150);
-    
-    // Additional fallback: ensure initial state request is sent
+    // Send initial state request immediately and retry if needed
     setTimeout(() => {
-      if (connected && (!lastinfo || Object.keys(lastinfo).length === 0)) {
-        console.log("iOS fallback: sending initial state request");
-        requestJson();
-      }
-    }, isIOS ? 2000 : 1000);
+      console.log("Sending initial state request...");
+      requestJson();
+      
+      // Retry if no response after 2 seconds
+      setTimeout(() => {
+        if (!lastinfo || Object.keys(lastinfo).length === 0) {
+          console.log("Retrying state request...");
+          requestJson();
+          
+          // Final retry after another 2 seconds
+          setTimeout(() => {
+            if (!lastinfo || Object.keys(lastinfo).length === 0) {
+              console.log("Final retry state request...");
+              requestJson();
+            }
+          }, 2000);
+        }
+      }, 2000);
+    }, 500);
   }
 
   function disconnect() {
@@ -1273,7 +1283,7 @@ const BLE = (() => {
   //   Sending any state obj  → WLED applies + echoes back updated state
 
   async function getState() {
-    const p = waitFor("state");
+    const p = waitFor("state", 10000); // Extended timeout for initial request
     await send({ v: true });
     return p;
   }
@@ -1669,19 +1679,17 @@ function handleJsonResponse(json) {
 
 // ── requestJson — central command (replaces HTTP /json/state) ────────
 var pendingRequest = false;
+var showErrorCount = 0;
 async function requestJson(payload=null) {
   if (!BLE.isConnected()) {
-    console.warn("requestJson: not connected");
     return;
   }
   if (payload !== null) {
     // Apply state change; WLED echoes back updated state automatically
-    console.debug("requestJson: sending state change", payload);
     await BLE.postState(payload);
     return;
   }
   if (pendingRequest) {
-    console.warn("requestJson: request already pending");
     return;
   }
   pendingRequest = true;
@@ -1689,20 +1697,22 @@ async function requestJson(payload=null) {
   try {
     // {"v":true} makes WLED return {"state":{...},"info":{...}} merged.
     // classify() splits them and routes each to its handler.
-    console.debug("requestJson: requesting state");
     const resp = await BLE.getState();
-    console.debug("requestJson: got response", resp);
     if (resp && resp.state && resp.info) {
       handleInfoResponse(resp.info);
       handleJsonResponse(resp.state);
+      showErrorCount = 0; // Reset error count on success
     } else if (resp) {
       handleJsonResponse(resp);
-    } else {
-      console.warn("requestJson: no response data");
+      showErrorCount = 0;
     }
   } catch(e) {
-    console.error("requestJson error:", e);
-    showToast("No response from WLED", true);
+    showErrorCount++;
+    // Only show error after 3 failed attempts to avoid spamming
+    if (showErrorCount >= 3) {
+      showToast("Waiting for WLED response...", true);
+      showErrorCount = 0; // Reset after showing
+    }
   }
   gId("cv").style.opacity = 0;
   pendingRequest = false;
