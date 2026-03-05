@@ -1508,8 +1508,10 @@ function onLoad() {
     if (sett) cfg = mergeDeep(cfg, JSON.parse(sett));
   } catch(e){}
 
-  // Request initial state from WLED device
-  requestJson();
+  // Request initial state from WLED device (with delay to allow device to be ready)
+  setTimeout(() => {
+    requestJson();
+  }, 500);
 
   // Color picker
   if (typeof iro !== "undefined") {
