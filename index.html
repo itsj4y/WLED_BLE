@@ -869,11 +869,19 @@ const BLE = (() => {
 
     try {
       device = await navigator.bluetooth.requestDevice({
-        filters: [{ services: [BLE_CFG.SERVICE] }],
+        filters: [{ name: 'WLED-BLE' }],
         optionalServices: [BLE_CFG.SERVICE]
       });
     } catch (e1) {
-      // Fallback: show all devices (user may have a different name)
+      // Check if user explicitly cancelled
+      if (e1.name === 'AbortError' || (e1.message && e1.message.includes('cancelled'))) {
+        // User cancelled - don't show fallback
+        setOverlayStatus("Cancelled.", "err");
+        document.getElementById("btn-ble-connect").disabled = false;
+        return;
+      }
+      
+      // Any other error (no devices found, etc.) - show fallback with all devices
       try {
         device = await navigator.bluetooth.requestDevice({
           acceptAllDevices: true,
