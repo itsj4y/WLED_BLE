@@ -881,16 +881,24 @@ const BLE = (() => {
         return;
       }
       
-      // Any other error (no devices found, etc.) - show fallback with all devices
+      // Try alternative filtering for iOS apps that don't support name filtering
       try {
         device = await navigator.bluetooth.requestDevice({
-          acceptAllDevices: true,
+          filters: [{ namePrefix: 'WLED' }],
           optionalServices: [BLE_CFG.SERVICE]
         });
       } catch (e2) {
-        setOverlayStatus("Cancelled.", "err");
-        document.getElementById("btn-ble-connect").disabled = false;
-        return;
+        // Final fallback: show all devices
+        try {
+          device = await navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices: [BLE_CFG.SERVICE]
+          });
+        } catch (e3) {
+          setOverlayStatus("Cancelled.", "err");
+          document.getElementById("btn-ble-connect").disabled = false;
+          return;
+        }
       }
     }
 
@@ -915,7 +923,18 @@ const BLE = (() => {
     updateBar();
     setOverlayStatus("Connected ✓", "ok");
     document.getElementById("ble-overlay").classList.add("hidden");
-    setTimeout(onLoad, 150);
+    
+    // iOS compatibility: wait a bit longer before initial request
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    setTimeout(onLoad, isIOS ? 500 : 150);
+    
+    // Additional fallback: ensure initial state request is sent
+    setTimeout(() => {
+      if (connected && (!lastinfo || Object.keys(lastinfo).length === 0)) {
+        console.log("iOS fallback: sending initial state request");
+        requestJson();
+      }
+    }, isIOS ? 2000 : 1000);
   }
 
   function disconnect() {
