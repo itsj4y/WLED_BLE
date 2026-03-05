@@ -1,725 +1,2335 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WLED BLE Controller</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta charset="utf-8">
+<meta name="theme-color" content="#222222">
+<meta content="yes" name="apple-mobile-web-app-capable">
+<link rel="shortcut icon" href="data:image/x-icon;base64,AAABAAEAEBAAAAEAGACGAAAAFgAAAIlQTkcNChoKAAAADUlIRFIAAAAQAAAAEAgGAAAAH/P/YQAAAE1JREFUOI1j/P//PwOxgNGeAUMxE9G6cQCKDWAhpADZ2f8PMjBS3QW08QK20KaZC2gfC9hCnqouoNgARgY7zMxAyNlUdQHlXiAlO2MDAD63EVqNHAe0AAAAAElFTkSuQmCC"/>
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAMAAAAKE/YAAAAANlBMVEUAAAAAKacAPv8APv8APv8APv8APv8AKacAQv8AJZsAKacAKacAPv8APv8AL8MAPv8APv8AQv/mTD7uAAAAEHRSTlMAf1mvpgzzka9/Vy3wnX9ic6GVaQAAAQhJREFUeNrt3EtuwkAQRdGGYAyYT9j/ZqN4GNkv9gSV4ZwVXJU8cVerGwAAAAAAUNTl9LXY6dJq6J/fiz37VsNuTfSu1SB6hmjRgWjRgWjRgWjRgWjRgehf5y1G70r/2Ha3w5T7foWhvVg3Pbxzq6w7lv5MRa8iWnQgWnQgWnQgWnQgWnQgenQtHT3spzxqT7p/+/MX0aJFj0SLDkSLDkSLDkSLDkSL/s/n7OhXRR8fNXb0q6KvrbSZSXetMtEzRIsORIsORIsORIsORIsORIdr/i+PHvYr3A9Tbsui7egn+2pf83//ky7RokWPRIsORIsORIsORIsORG/2gbhNPsUHAAAAAAD89QMg+PZb+jO0tAAAAABJRU5ErkJggg==" sizes="180x180"/>
+<title>WLED</title>
+
+<!-- UUIDs from your ESP32 firmware (ble-uart-bridge.ino) -->
+<script>
+const BLE_CFG = {
+  SERVICE:     "12345678-1234-1234-1234-123456789abc",
+  NOTIFY_CHAR: "12345678-1234-1234-1234-123456789abd",  // device → browser (subscribe/notify)
+  WRITE_CHAR:  "12345678-1234-1234-1234-123456789abe",  // browser → device (write)
+};
+</script>
+
 <style>
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
-    body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(135deg, #000000 0%, #555555 100%);
-        min-height: 100vh;
-        padding: 20px;
-        color: white;
-    }
-    .container {
-        max-width: 600px;
-        margin: 0 auto;
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        border-radius: 20px;
-        padding: 30px;
-        box-shadow: 0 15px 35px rgba(0,0,0,0.2);
-    }
-    h1 {
-        text-align: center;
-        margin-bottom: 30px;
-        font-size: 2rem;
-    }
-    .status {
-        background: rgba(255,255,255,0.1);
-        border-radius: 15px;
-        padding: 20px;
-        margin-bottom: 25px;
-        text-align: center;
-        border: 2px solid transparent;
-        transition: all 0.3s ease;
-    }
-    .status.connected { border-color:#4CAF50; background:rgba(76,175,80,0.2); }
-    .status.disconnected { border-color:#f44336; background:rgba(244,67,54,0.2); }
-    .control-group {
-        margin-bottom:25px;
-        background: rgba(255,255,255,0.05);
-        border-radius:15px;
-        padding:20px;
-    }
-    .control-group h3 {
-	text-align: center;
-        margin-bottom:15px;
-        font-size:1.2rem;
-    }
-    .control-row {
-        display:flex;
-        flex-wrap:wrap; /* allow wrapping on small screens */
-        align-items:center;
-        gap:10px;
-        margin-bottom:15px;
-    }
-    .control-row:last-child { margin-bottom:0; }
-    label { min-width:80px; font-weight:500; }
-    button {
-        background:linear-gradient(45deg,#222,#444);
-        border:none;
-        color:white;
-        padding:10px 18px;
-        border-radius:25px;
-        cursor:pointer;
-        font-weight:600;
-        transition:all 0.3s ease;
-        text-transform:uppercase;
-        font-size:0.9rem;
-    }
-    button:hover { transform:translateY(-2px); box-shadow:0 8px 25px rgba(0,0,0,0.3); }
-    button:disabled { background:#666; cursor:not-allowed; transform:none; }
-    input[type="range"] {
-        flex:1;
-		width: 100%;
-        height:8px;
-        border-radius:4px;
-        background:rgba(255,255,255,0.3);
-        outline:none;
-        -webkit-appearance:none;
-    }
-	#effectSelect {
-	  background: rgba(255,255,255,0.1);
-	  color: #fff;
-	  border: 2px solid rgba(255,255,255,0.3);
-	  border-radius: 8px;
-	  font-size: 1rem;
-	  padding: 6px 10px;
-	  width: 100%; /* or a custom width */
-	}
-	#effectSelect option {
-	  background: #222; /* background for dropdown options */
-	  color: #fff;
-	}
+/* ── WLED custom icon font (WIcons) ───────────────────────────── */
+@font-face {
+  font-family: "WIcons";
+  src: url(data:font/woff2;charset=utf-8;base64,d09GMgABAAAAAAnUAAsAAAAAE1AAAAmFAAGZmgAAAAAAAAAAAAAAAAAAAAAAAAAABmAAgXwRCAqcYJZIATYCJANwCzoABCAFgwYHIBs7D8iOwzgm3MXMnzZCktnjcbN+QlJLaJ3ulULplpW6UqWioeS91Jye0jUlJwZr5nTdE3LntdPvAg+ft/fbsLsGlNLuhlmQjKi7NPDEIgwTmP//a6mdl+SHUBhEIdHFxak7s4E/yzhJSjC7BQQLfDwopF/i6aqSElEFDXx8ZVWjy3rym4N6FlZQ4hu+nXsGIDMQF3gAxa14AgArtVMhfkgjfEAbiChwuSIwEUCmudPhiQdT6rvIjLSRZEwDhF9BIsooI53TIRIoIUD8kyNZI7UjAyMrR/aM/DwaOpozah9LGCsY2zN2YOzs2L3xqeNp4zXjq8bXT/hMBLj/53YDAIS+7u668n3H+HRPdZd1u3TzdRZdVMTfIl5HfKgd1b7Svqd9W9uprdP8QTOmeaz5TPORJlDDjHVjG0ANMQYsmRrKlmpyqV7kubIQC2GSIkFS+MneCJ48JJFVChQfuwKMp2yU9pmq1VKUR6ret0Gp0SjVYRRF+Xj7+OiUSk/GIzu1miHZWx+g8Y1RUktPmqIitRTXVNzzCtuFPKcH0zRBG+Y9/CnhBa20v5oHfsEUMgXMPEfO5ZcJx0FIPiVywgjb6MIuV+oZ4v2kk6/znIxDKrguM22y+bW8wUGqi7aL8fQJzwnCj8tIppdI9bYDSVJVCQInipW0HbtclcT7vCyLmXaSVrQSNMybaJJBh2PiXrXbgd6AbqecdDTO9EQEIeW0VPWQcdQ8ltPOEu+76q2IxUToJeWpfjQiHHH5AsADLj1bHgQxXsUoHfKYbg+CxCxC69eHcOvWheJ1l6b0nD7jG+bSA1dCZVxmw8ZJ/IYtxPtbJxlpQ/LGjSq00TmdNIZxrGel+y+rZJro+nUh3PrNIGwK6WrXNMV2xTeRWHSjScktLJfe1rc7spyvk3b6V4k48Sr3Am1Pv/QifhsI2uMvc863OiQQRNoedpPfHnSwcede+aDEE67cKzTgBlQgjpjgTDnJtGnX2qbmXJ6FOBLZ7wsr+JZzYnbjdbkCuEfU0HvlwqbtUgJ7zRXFNJsvSxlwz2WYta4xjri/fsulnnFVPyonpP0RL5oVNKkkfElG4csTDNAsgzC38G7gSKVgSZ7m/cEvKALmxKz//u7h6egHF7MrH4jJp/Zx4q32a8T71xnHVRCGlfFZNttd2FcUaay6e9PkhucyR0oPu1z1z/DB+8wixAFdMU1gnmB4xAw68pwHcWjlFrBnXxLjj63UGgvNGVGAJFzxFw+Womn7MAibVbu6leHRB5sc10fLtbrdr/JqV6Yr+ovwFtRHE7M4zG90qNB6YREoo51kFJabq3NeHVKdef/hsMFFSpt5m8XmJqDDAnR0c418mxmxrQzQuyPnspRwfAYkpthzr7gST1xNSf4WtBMM9DQT19uL+gb47gFLP3cT08F8I4dZxJl41Gsx9WHzLBOHzWjRS9NLCOUBCFQ+uGhB/V7ZzUwKESTmDriJ+UecdD/bFXFMLLsjgiAt4pp7ulpxb2tzE8I8xhyHODBK3SGg6QP12BiP3YMw2rDFtWUDXL+esnv3H9QxqfmbDnbMLjGUFpqqZbnWSg0lhWv9wU35qTHqP9zqUrL7kqKj8YjZzg01pb9+yQ8sXZpYxKGiFJTNsIwwpyR44gEOnV/+ennFdHD/2lQ3uS5y1qzIztXUNPE6odYJ0PqUiWJtgKGKMILY60dxeYynbb+sFKKqNn0Wz2rLtMbBQWPnYtmJa4WqFRob/9mmuycQVv7ifCNvXrlhzgDLDvAGA+8H5xjK948cDet+FaXfS+Lko/Wt+vScqarq6kZTbk4NaKqpObkEEpsac9L1rRNXJgPbrWyDdYje6tBQAztkbYC0wDe4UnNipmnZtInu/ujf6Kf7ve112Huf92Ev/7enB/+nP7pbrPiQJZbi0jCSpoN9UNPTkj7JMwpbWgopAbhtbOWkytAF3K+/qo0SASNW2G2bLfnshpB4a9dmz7/Hx//dc3OXNZ46YRyXUV2dYRsD97qKL79qazu+vSI1vPXT7375bWSGocBofD2eIRzJ0cMC0tenwQ0gfvuSdvd14f1uEooLPE3JJHL6uCd/n5n8d35UOKPn6nhr8kyrV3ad3nz2iTiNL414EnefL/JGLlWZtZWaqoEh4xSjvsGb/6m9raFlsLm4uHkQWlv7T/weZzjHHe7xZiUzpJ5WAWBLDNwRKxwRYnFoXGxcaKxN6DR8BNn2o9Nqmmutvra5TnIjXMBlmIFZ3yPYX3Mt9v5mmHuwYvvxPverL9eSvszXNjUXrkbqcGOVW2bEbDGKi3MLVTWzzWHF54Bu/2rA1qko6l9fFgVbBurfVBWFFlVW1ugxOwcs+8W//FcUZJieLl9WXA8eGL5crB7fhOMyxl8bjQWGjB1bW/ok6Ucqensr7F8H7utsmdqoHmz99rvyeE/Pz7u64mvVXLjyY8v8j5XhZeH3aPX75dpiO5eN/OzwcG7zkflt/sd5e7YcqbOowfRg22R5585at2vXX87W1Y0gQ079497eYT1EkyoEqMYABmHd8QvKGrRG6bJYTDCCZYGEWcm5G1jXM2i54Y9WtiBuklP57YtBZMAWlu2fYzDM7Q+5FmxKS3Oz5jwK6IactbWPowuQgNyHluKlaw9wnbOmtuijo/VSw9FrBSRwMcuUV2ZwFhh6s7hsqriWCsgA2s3nFcri4I7O+asxwxZbtLL03E9bhcR6Yz9mIbF0U96K0xGA7bx9y+l2//73j+H2i0EGd27uAVNI/WhCYuWqIDaYxads0lcVFV+dOlHmBx/qO7c6/uZX0tReUtJQv64y3adAvX6xDezAX/8Wm8Cgh/95O9OxsNCYnsXWQ+7pCz8/NMZ57ZAIGEdTw+ap8V+I3NUVe375wiv+lccqj172X7Yw5gJAUQGYPQ6QyxRfgeC+Qc5WnAMCAHFv6TJtet3pn/83b4YCAIBv35ofpTRyt5PjZEwT8KYAEQK8nFgBcE/yUwn2oqHSBKoEG7KZQLMpjo5uha/PI2yuBWOCTSDZajpqQ68+Za18jgGgYMT8nBhjKcFrKCYF6yKSZRLF5tR5YKhUzzNWM52mBvuPMiL7xPx4UaRgFiJZAVFscZ2HUIhUPcEaH5WWDvvmvdPfl5KaCvO8o1+fFCBb6hvuLz8lMROwfjPN8iar90RCCiRCJr3ugqHf6LqgUYYs5hzvu9tMIOUr/xpvRsNVvdZ/p+mB8n7V2Spo0T+aRhPpNhsNFOqxoE2u0suqTipgx58IJA0AAAA=) format('woff');
+}
 
-    input[type="range"]::-webkit-slider-thumb {
-        -webkit-appearance:none;
-        appearance:none;
-        width:20px;height:20px;border-radius:50%;background:#4ECDC4;
-        cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.3);
-    }
-    input[type="color"] {
-        width:50px;height:35px;border:none;border-radius:8px;cursor:pointer;
-    }
-    input[type="number"] {
-        background:rgba(255,255,255,0.1);
-        border:2px solid rgba(255,255,255,0.3);
-        border-radius:8px;
-        color:white;
-        padding:8px 12px;
-        width:80px;
-    }
-    .color-picker { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
-    .value-display {
-        min-width:35px;text-align:center;font-weight:bold;
-        background:rgba(255,255,255,0.1);padding:5px 8px;border-radius:8px;
-    }
-    .log {
-        background:rgba(0,0,0,0.3);
-        border-radius:10px;
-        padding:10px;
-        height:200px;
-        overflow-y:auto;
-        font-family:monospace;
-        font-size:0.85rem;
-        white-space:pre-wrap;
-    }
-    .json-command {
-        width:100%;
-        background:rgba(255,255,255,0.1);
-        border:2px solid rgba(255,255,255,0.3);
-        border-radius:8px;
-        color:white;
-        padding:8px;
-        font-family:monospace;
-        resize:vertical;
-        height:80px;
-    }
-    .json-command::placeholder { color:rgba(255,255,255,0.5); }
-    @keyframes pulse {0%{opacity:1;}50%{opacity:0.5;}100%{opacity:1;}}
-    .connecting { animation:pulse 1s infinite; }
+/* ── CSS variables (exact WLED originals) ─────────────────────── */
+:root {
+  --c-1:#111; --c-f:#fff; --c-2:#222; --c-3:#333; --c-4:#444;
+  --c-5:#555; --c-6:#666; --c-8:#888; --c-b:#bbb; --c-c:#ccc;
+  --c-e:#eee; --c-d:#ddd; --c-r:#c32; --c-g:#2c1; --c-l:#48a; --c-y:#a90;
+  --t-b:.5;
+  --c-o:rgba(34,34,34,.9);
+  --c-tb:rgba(34,34,34,var(--t-b));
+  --c-tba:rgba(102,102,102,var(--t-b));
+  --c-tbh:rgba(51,51,51,var(--t-b));
+  --c-sb:#fff3; --c-sbh:#fff5;
+  --th:70px; --tp:70px; --bh:63px;
+  --tbp:14px 14px 10px 14px; --bbp:9px 0 7px 0;
+  --bhd:none; --sgp:block; --bmt:0;
+  --sti:42px; --stp:42px;
+}
+html { touch-action:manipulation; }
+body {
+  margin:0; background-color:var(--c-1);
+  font-family:Helvetica,Verdana,sans-serif; font-size:17px;
+  color:var(--c-f); text-align:center;
+  -webkit-touch-callout:none; -webkit-user-select:none;
+  -moz-user-select:none; -ms-user-select:none; user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  scrollbar-width:6px; scrollbar-color:var(--c-sb) transparent;
+}
+html,body { height:100%; width:100%; position:fixed; overscroll-behavior:none; }
 
-    /* --- Mobile tweaks --- */
-    @media (max-width: 600px) {
-        body { padding:10px; }
-        .container { padding:20px; }
-        h1 { font-size:1.5rem; }
-        label { min-width:auto; flex:1 0 100%; }
-        .control-row { flex-direction:column; align-items:center; }
-        button { width:50%; text-align:center; }
-        input[type="number"], input[type="color"] { width:100%; }
-        .value-display { font-size:0.8rem; padding:4px 6px; }
-    }
+#bg { height:100vh; width:100vw; position:fixed; z-index:-10;
+  background-position:center; background-repeat:no-repeat;
+  background-size:cover; opacity:0; transition:opacity 2s; }
+
+p { margin:10px 0 2px 0; }
+a,p,a:visited { color:var(--c-d); }
+a,a:visited { text-decoration:none; }
+button { outline:0; cursor:pointer; }
+
+.labels { margin:0; padding:8px 0 2px 0; font-size:19px; }
+
+#namelabel {
+  position:fixed; bottom:calc(var(--bh) + 6px); right:6px;
+  color:var(--c-8); cursor:pointer;
+  writing-mode:vertical-rl;
+}
+.bri { padding:4px; }
+.wrapper {
+  position:fixed; top:0; left:0; right:0;
+  background:var(--c-tb); z-index:1;
+}
+.icons {
+  font-family:'WIcons'; font-style:normal;
+  font-size:24px!important; line-height:1!important; display:inline-block;
+}
+.on  { color:var(--c-g)!important; }
+.off { color:var(--c-6)!important; }
+.top .icons,.bot .icons { margin:-2px 0 4px 0; }
+.huge { font-size:60px!important; }
+
+.segt,.plentry TABLE { table-layout:fixed; width:100%; }
+.segt TD { padding:2px 0!important; text-align:center; }
+.segt TD,.plentry TD { font-size:13px; padding:0; vertical-align:middle; }
+.keytd { text-align:left; }
+.valtd { text-align:right; }
+.valtd i { font-size:small; }
+
+.slider-icon { position:absolute; left:8px; bottom:5px; }
+.sel-icon { transform:translateX(3px); }
+.e-icon,.g-icon,.sel-icon,.slider-icon { cursor:pointer; color:var(--c-d); }
+.g-icon { font-style:normal; position:absolute; top:8px; right:8px; }
+.pop { position:absolute; display:inline-block; top:0; right:0; }
+.pop-c {
+  position:absolute; background-color:var(--c-2);
+  border:1px solid var(--c-8); border-radius:20px; z-index:1;
+  top:3px; right:35px; padding:3px 8px 1px;
+  font-size:24px; line-height:24px;
+}
+.pop-c span { padding:2px 6px; }
+.search-icon { position:absolute; top:8px; left:12px; width:24px; height:24px; }
+.clear-icon  { position:absolute; top:8px; right:9px; cursor:pointer; }
+
+.flr { color:var(--c-f); transform:rotate(0deg); transition:transform .3s;
+  position:absolute; top:0; right:0; padding:8px; }
+.expanded .flr,.exp { transform:rotate(180deg); }
+.il { display:inline-block; vertical-align:middle; }
+
+#liveview { height:4px; width:100%; border:0; }
+#liveview2D { height:90%; width:90%; border:0; position:absolute;
+  top:50%; left:50%; transform:translate(-50%,-50%); }
+
+.tab { background-color:transparent; color:var(--c-d); }
+.bot {
+  position:fixed; bottom:0; left:0; width:100%;
+  background-color:var(--c-tb);
+}
+.tab button {
+  background-color:transparent; float:left; border:0;
+  transition:color .3s,background-color .3s;
+  font-size:17px; color:var(--c-c); min-width:44px;
+}
+.top button { padding:var(--tbp); margin:0; }
+.bot button { padding:var(--bbp); width:25%; margin:0; }
+.tab button:hover { background-color:var(--c-tbh); color:var(--c-e); }
+.tab button.active { background-color:var(--c-tba)!important; color:var(--c-f); }
+.active { background-color:var(--c-6)!important; color:var(--c-f); }
+
+/* sliding container (the WLED swipe layout) */
+.container {
+  --n:1; width:100%; width:calc(var(--n)*100%);
+  height:calc(100% - var(--tp) - var(--bh));
+  margin-top:var(--tp);
+  transform:translate(calc(var(--i,0)/var(--n)*-100%));
+  overscroll-behavior:none;
+}
+.tabcontent {
+  float:left; position:relative;
+  width:100%; width:calc(100%/var(--n));
+  box-sizing:border-box; border:0;
+  overflow-y:auto; overflow-x:hidden; height:100%;
+  overscroll-behavior:none; padding:0 4px;
+  -webkit-overflow-scrolling:touch;
+}
+#Segments,#Presets,#Effects,#Colors { font-size:19px; padding:4px 0 0; }
+.combined-page .section-hdr { margin-top:1.2em; margin-bottom:0.3em; padding-top:0.5em; border-top:1px solid var(--c-4); }
+.combined-page .section-hdr:first-child { margin-top:0; padding-top:0; border-top:none; }
+
+/* Horizontal layout styles */
+.horizontal-layout {
+  overflow-x: auto;
+  overflow-y: auto;
+  height: calc(100vh - var(--tp) - var(--bh));
+}
+.sections-grid {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  padding: 10px;
+  min-width: 1200px;
+  height: 100%;
+}
+.section {
+  background-color: var(--c-2);
+  border-radius: 8px;
+  padding: 15px;
+  border: 1px solid var(--c-4);
+  flex: 1;
+  min-width: 280px;
+  overflow-y: auto;
+}
+.section .section-hdr {
+  margin-top: 0;
+  margin-bottom: 1em;
+  padding-bottom: 0.5em;
+  border-bottom: 1px solid var(--c-4);
+}
+.section .section-hdr:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+#segutil,#segutil2,#segcont,#putil,#pcont,#pql,#fx,#palw,.fnd { max-width:280px; }
+#putil,#segutil,#segutil2 { min-height:42px; margin:0 auto; }
+#segutil .segin { padding-top:12px; }
+#fx,#pql,#segcont,#pcont,#sliders,#qcs-w,#hexw,#pall,#ledmap,
+.slider,.filter,.option,.segname,.pname,.fnd { margin:0 auto; }
+#putil { padding:5px 0 0; }
+.simplified #pql,.simplified #palw,.simplified #fx { margin-bottom:8px; }
+.smooth { transition:transform calc(var(--f,1)*.5s) ease-out; }
+
+.tab-label { margin:0 0 -5px 0; padding-bottom:4px; display:var(--bhd); }
+
+.overlay {
+  position:fixed; height:100%; width:100%; top:0; left:0;
+  background-color:var(--c-3); font-size:24px;
+  display:flex; align-items:center; justify-content:center;
+  z-index:11; opacity:.95; transition:.7s; pointer-events:none;
+}
+.staytop,.staybot {
+  display:block; position:-webkit-sticky; position:sticky!important;
+  top:0; z-index:2; margin:0 auto auto;
+}
+.staybot { bottom:5px; }
+#sliders { position:-webkit-sticky; position:sticky; bottom:0; max-width:300px; z-index:2; }
+#sliders .labels { padding-top:3px; font-size:small; }
+
+.slider {
+  border-radius:24px; position:relative; padding-bottom:2px;
+}
+.sliderwrap {
+  height:30px; width:230px; max-width:230px;
+  position:relative; z-index:0;
+}
+#sliders .slider { padding-right:64px; }
+#sliders .slider,#info .slider { background-color:var(--c-2); }
+#sliders .sliderwrap,.sbs .sliderwrap { left:32px; }
+
+.filter,.option {
+  background-color:var(--c-4); border-radius:26px; height:26px;
+  max-width:300px; padding:4px 2px; position:relative;
+  opacity:1; transition:opacity .25s linear,height .2s,transform .2s;
+}
+.filter {
+  z-index:1; border-radius:0 0 16px 16px; max-width:220px;
+  height:54px; line-height:1.5; padding-bottom:8px; pointer-events:none;
+}
+.tooltip {
+  position:absolute; opacity:0; visibility:hidden;
+  transition:opacity .25s ease,visibility .25s ease;
+  background-color:var(--c-5); box-shadow:4px 4px 10px 4px var(--c-1);
+  color:var(--c-f); text-align:center; padding:8px 16px;
+  border-radius:6px; z-index:1; pointer-events:none;
+}
+.tooltip::after {
+  content:""; position:absolute; border:8px solid;
+  border-color:var(--c-5) transparent transparent transparent;
+  top:100%; left:calc(50% - 8px); z-index:0;
+}
+.tooltip.visible { opacity:1; visibility:visible; }
+.fade {
+  visibility:hidden; opacity:0;
+  transform:scaleY(0); height:0; padding:0;
+}
+.first { margin-top:10px; }
+
+#toast {
+  opacity:0; background-color:var(--c-5); border:1px solid var(--c-2);
+  max-width:90%; color:var(--c-f); text-align:center;
+  border-radius:5px; padding:22px; position:fixed; z-index:5;
+  left:50%; transform:translateX(-50%);
+  bottom:calc(var(--bh) + 22px); font-size:17px; pointer-events:none;
+}
+#toast.show { opacity:1; animation:fadein .5s,fadein .5s 2.5s reverse; }
+#toast.error { opacity:1; background-color:#b21; animation:fadein .5s; }
+
+.modal {
+  position:fixed; left:0; bottom:0; right:0;
+  top:calc(var(--th) - 1px);
+  background-color:var(--c-o); transform:translateY(100%);
+  transition:transform .4s; padding:8px; font-size:20px; overflow:auto;
+}
+.modal.open { transform:translateY(0)!important; }
+.close { position:-webkit-sticky; position:sticky; top:0; float:right; }
+#info,#nodes { z-index:4; }
+#rover { z-index:3; }
+#rover .ibtn { margin:5px; }
+#ndlt { margin:12px 0; }
+#roverstar { position:fixed; top:calc(var(--th)+5px); left:1px; cursor:pointer; }
+
+#connind {
+  position:fixed; bottom:calc(var(--bh)+5px); left:4px;
+  padding:5px; border-radius:5px; background-color:#a90; z-index:-2;
+}
+#info .slider { max-width:200px; min-width:145px; float:right; margin:0; }
+#info .sliderwrap { width:200px; }
+#info table,#nodes table { table-layout:fixed; width:100%; }
+#info td,#nodes td { padding-bottom:8px; }
+#info .ibtn { margin:5px; }
+#info div,#nodes div { max-width:490px; margin:0 auto; }
+#info #imgw { margin:8px auto; }
+#lv { max-width:600px; display:inline-block; }
+#heart { transition:color .9s; font-size:16px; color:#f00; }
+img { max-width:100%; max-height:100%; }
+.wi { image-rendering:pixelated; image-rendering:crisp-edges; width:210px; }
+
+@keyframes fadein {
+  from { bottom:0; opacity:0; }
+  to   { bottom:calc(var(--bh)+22px); opacity:1; }
+}
+
+.sliderdisplay {
+  content:''; position:absolute; top:12px; left:8px; right:8px;
+  height:5px; background:var(--c-4); border-radius:16px;
+  pointer-events:none; z-index:-1; --bg:var(--c-f);
+}
+#rwrap .sliderdisplay { --bg:none; background:linear-gradient(90deg,#000 -15%,#f00); }
+#gwrap .sliderdisplay { --bg:none; background:linear-gradient(90deg,#000 -15%,#0f0); }
+#bwrap .sliderdisplay { --bg:none; background:linear-gradient(90deg,#000 -15%,#00f); }
+#wwrap .sliderdisplay { --bg:none; background:linear-gradient(90deg,#000 -15%,#fff); }
+#kwrap .sliderdisplay,#wbal .sliderdisplay { background:linear-gradient(90deg,#ff8f1f 0%,#fff 50%,#cbdbff); }
+
+/* hidden by default (original WLED) */
+#liveview,#liveview2D,#roverstar,
+#rgbwrap,#swrap,#hwrap,#kwrap,#wwrap,#wbal,#qcs-w,#hexw,
+.clear-icon,.edit-icon,.ptxt { display:none; }
+
+.sliderbubble {
+  width:24px; position:absolute; display:inline-block;
+  border-radius:16px; background:var(--c-3); color:var(--c-f);
+  padding:4px; font-size:14px; right:6px;
+  transition:visibility .25s ease,opacity .25s ease;
+  opacity:0; visibility:hidden; top:4px;
+}
+output.sliderbubbleshow { visibility:visible; opacity:1; }
+
+input[type=range] {
+  -webkit-appearance:none; width:100%; padding:0; margin:0;
+  background-color:transparent; cursor:pointer;
+}
+input[type=range]:focus { outline:0; }
+input[type=range]::-webkit-slider-runnable-track { width:100%; height:30px; cursor:pointer; background:transparent; }
+input[type=range]::-webkit-slider-thumb { height:16px; width:16px; border-radius:50%; background:var(--c-f); cursor:pointer; -webkit-appearance:none; margin-top:7px; }
+input[type=range]::-moz-range-track { width:100%; height:30px; background-color:rgba(0,0,0,0); }
+input[type=range]::-moz-range-thumb { border:0 solid rgba(0,0,0,0); height:16px; width:16px; border-radius:50%; background:var(--c-f); transform:translateY(5px); }
+#Colors input[type=range]::-webkit-slider-thumb { height:18px; width:18px; border:2px solid var(--c-1); margin-top:5px; }
+#Colors input[type=range]::-moz-range-thumb { border:2px solid var(--c-1); }
+#Colors .sliderwrap { margin:2px 0 0; }
+
+.hd { display:var(--bhd); }
+.simplified #pql .hd { display:var(--bhd)!important; }
+
+#briwrap { min-width:300px; float:right; margin-top:var(--bmt); }
+#picker { margin:4px auto 0!important; max-width:max-content; }
+
+.btn {
+  padding:8px; width:230px; font-size:19px; color:var(--c-d); cursor:pointer;
+  border-radius:25px; transition-duration:.3s;
+  -webkit-backface-visibility:hidden; -webkit-transform:translate3d(0,0,0);
+  backface-visibility:hidden; transform:translate3d(0,0,0);
+  overflow:hidden; text-overflow:ellipsis;
+  border:1px solid var(--c-3); background-color:var(--c-3);
+}
+#segutil .btn-s:hover,#segutil2 .btn-s:hover,#putil .btn-s:hover,.btn:hover {
+  border:1px solid var(--c-5); background-color:var(--c-5);
+}
+.btn-s { width:100%; margin:0; }
+.btn-icon { margin:-4px 4px -1px 0; vertical-align:middle; display:inline-block; }
+.btn-n { width:230px; margin:0 8px 0 0; }
+.btn-p { width:120px; margin:5px 0; }
+.btn-xs,.btn-pl-del,.btn-pl-add { width:42px!important; height:42px!important; text-overflow:clip; }
+.btn-xs { margin:0; }
+#info .btn-xs { border:1px solid var(--c-4); }
+#btns .btn-xs { margin:0 4px; }
+#putil .btn-s { width:135px; }
+#nodes .ibtn { margin:0; }
+#segutil .btn-s,#segutil2 .btn-s,#putil .btn-s { background-color:var(--c-3); border:1px solid var(--c-3); }
+.btn-pl-del,.btn-pl-add { margin:0; white-space:nowrap; }
+a.btn { display:block; white-space:nowrap; text-align:center; padding:9px 32px 7px 24px; position:relative; box-sizing:border-box; line-height:24px; }
+
+#qcs-w { margin-top:10px; }
+.qcs { margin:2px; border-radius:14px; display:inline-block; width:28px; height:28px; line-height:28px; }
+.qcsb,.qcsw { width:26px; height:26px; line-height:26px; border:1px solid var(--c-f); }
+#hexw { margin-top:5px; }
+
+select {
+  padding:4px 8px; margin:0; font-size:19px;
+  background-color:var(--c-3); color:var(--c-d); cursor:pointer;
+  border:0 solid var(--c-2); border-radius:20px; transition-duration:.5s;
+  -webkit-backface-visibility:hidden; -webkit-transform:translate3d(0,0,0);
+  -webkit-appearance:none; -moz-appearance:none;
+  backface-visibility:hidden; transform:translate3d(0,0,0); text-overflow:ellipsis;
+}
+#tt { text-align:center; }
+select.sel-p,select.sel-pl,select.sel-ple { margin:5px 0; width:100%; height:40px; padding:0 20px 0 8px; }
+div.sel-p { position:relative; }
+div.sel-p:after { content:""; position:absolute; right:10px; top:22px; width:0; height:0; border-left:8px solid transparent; border-right:8px solid transparent; border-top:8px solid var(--c-f); }
+select.sel-ple { text-align:center; }
+select.sel-sg { margin:5px 0; height:40px; }
+option { background-color:var(--c-3); color:var(--c-f); }
+
+input[type=number],input[type=text] {
+  background:var(--c-3); color:var(--c-f); border:0 solid var(--c-2);
+  border-radius:10px; padding:8px; font-size:19px;
+  transition:background-color .2s; outline:0;
+  -webkit-appearance:textfield; -moz-appearance:textfield; appearance:textfield;
+}
+input[type=number] { text-align:right; width:50px; }
+input[type=text] { text-align:center; }
+input[type=number]:focus,input[type=text]:focus { background:var(--c-6); }
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; }
+#hexw input[type=text] { width:6em; }
+input[type=text].ptxt { width:calc(100% - 24px); }
+
+.check { display:inline-flex; align-items:center; }
+.checkmark { display:inline-block; width:18px; height:18px; border:2px solid var(--c-d); border-radius:4px; flex-shrink:0; }
+.check input:checked + .checkmark { background:var(--c-g); border-color:var(--c-g); }
+.check input { display:none; }
+.revchkl { font-size:14px; margin:4px; cursor:pointer; }
+.schkl,.ochkl { cursor:pointer; font-size:14px; margin:2px; }
+.fchkl { cursor:pointer; margin:0 3px; font-size:14px; }
+.check.fchkl { display:inline-flex; border-radius:50%; padding:2px 4px; background:var(--c-3); }
+
+.infot { width:100%; font-size:14px; }
+.infot td { padding:2px 4px; }
+.keytd { text-align:left; min-width:120px; }
+.valtd { text-align:right; }
+
+.lstI { border-radius:4px; margin:2px 0; }
+.lstIcontent { padding:5px 8px 5px 8px; cursor:pointer; border-radius:4px; transition:background-color .15s; }
+.lstIcontent:hover,.pres:hover { background-color:var(--c-4); }
+.lstIcontent.selected,.pres.selected { background-color:var(--c-5)!important; }
+.lstIprev { height:8px; border-radius:4px; margin-top:3px; background:var(--c-3); }
+.lstIname { display:inline; }
+
+.pres { border-radius:4px; position:relative; overflow:hidden; }
+.pname { padding:8px; cursor:pointer; display:flex; align-items:center; min-height:42px; }
+.pid { display:inline-block; min-width:24px; color:var(--c-6); font-size:14px; text-align:left; margin-right:4px; }
+.presin { display:none; }
+.presin.open { display:block; }
+.psts { width:auto!important; min-width:42px; margin:2px; font-size:14px; padding:4px 8px; }
+#pql.expanded { padding-bottom:8px; border-bottom:1px solid var(--c-3); margin-bottom:4px; }
+
+.seg { border-radius:4px; position:relative; }
+.segname { padding:8px; cursor:pointer; min-height:42px; display:flex; align-items:center; position:relative; overflow:hidden; }
+.segin { display:none; }
+.expanded .segin { display:block; }
+.segn { width:50px!important; }
+.del { display:flex; justify-content:flex-end; gap:4px; padding:4px 0; }
+.frz { margin-right:4px; }
+.sbs { display:flex; align-items:center; gap:4px; padding:4px 0; }
+
+.infot, #info table { font-size:14px; text-align:left; }
+#kv table,#kn table { width:100%; }
+.h { font-size:14px; color:var(--c-8); }
+.h a { color:var(--c-l); }
+
+.bp { font-size:12px; color:var(--c-8); padding:2px 0; }
+
+/* BLE overlay (not in original WLED — added for BLE connection) */
+#ble-overlay {
+  position:fixed; inset:0; z-index:20;
+  background:var(--c-1);
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:14px; padding:20px; text-align:center;
+  transition:opacity .4s;
+}
+#ble-overlay.hidden { opacity:0; pointer-events:none; }
+#ble-overlay h1 { margin:0; font-size:1.4rem; }
+#ble-overlay p  { margin:0; color:var(--c-8); font-size:.85rem; max-width:320px; }
+#ble-status { font-size:.85rem; color:var(--c-8); min-height:1.2em; }
+#ble-status.err { color:var(--c-r); }
+#ble-status.ok  { color:var(--c-g); }
+#btn-ble-connect {
+  padding:10px 28px; border-radius:24px;
+  background:var(--c-l); color:#fff; border:none;
+  font-size:1rem; cursor:pointer; transition:background .15s;
+}
+#btn-ble-connect:hover { background:var(--c-4); }
+#btn-ble-connect:disabled { opacity:.4; cursor:default; }
+
+/* BLE status bar */
+#ble-bar {
+  position:fixed; top:0; left:0; right:0; z-index:100;
+  display:flex; align-items:center; gap:6px;
+  padding:3px 8px; background:rgba(0,0,0,.7);
+  font-size:11px; color:var(--c-8);
+}
+#ble-dot { width:7px; height:7px; border-radius:50%; background:var(--c-r); flex-shrink:0; }
+#ble-dot.conn { background:var(--c-g); }
+#ble-devname { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#ble-tx { width:5px; height:5px; border-radius:50%; background:var(--c-l); opacity:0; transition:opacity .08s; }
+#ble-tx.flash { opacity:1; }
+#btn-ble-disc { padding:1px 7px; border-radius:10px; border:1px solid var(--c-4); background:transparent; color:var(--c-8); cursor:pointer; font-size:10px; }
+
+/* push the wrapper down by ble-bar height */
+.wrapper { top:18px; }
+:root { --tp:88px; --th:88px; }
+
+.hide { display:none!important; }
 </style>
 </head>
 <body>
-    <div class="container">
-        <h1>WLED BLE Controller</h1>
-        
-        <div id="status" class="status disconnected">
-            <strong>Status:</strong> <span id="statusText">Disconnected</span>
-            <br><br>
-            <button id="connectBtn" onclick="connectToDevice()">Connect to WLED</button>
-            <button id="disconnectBtn" onclick="disconnectDevice()" style="display: none;">Disconnect</button>
-        </div>
+<div id="bg"></div>
 
-        <div class="control-group">
-            <h3>💡 Power & Brightness</h3>
-            <div class="control-row">
-<!--                 <label>Power:</label> -->
-                <button id="powerBtn" onclick="togglePower()" disabled>Turn On</button>
-            </div>
-            <div class="control-row">
-<!--                 <label>Brightness:</label> -->
-                <input type="range" id="brightnessSlider" min="0" max="255" value="128" 
-                       oninput="updateBrightness(this.value)" disabled>
-                <span class="value-display" id="brightnessValue">128</span>
-            </div>
-        </div>
+<!-- ── BLE connect overlay ───────────────────────────────────────── -->
+<div id="ble-overlay">
+  <div style="font-size:3rem">&#x1F4F6;</div>
+  <h1>WLED over BLE</h1>
+  <p>Connect your browser to your WLED BLE bridge via Web Bluetooth</p>
+  <button id="btn-ble-connect" onclick="bleConnect()">Connect via Bluetooth</button>
+  <div id="ble-status">Waiting…</div>
+  <p id="ble-note">Requires Chrome or Edge on desktop or Android.<br>
+  Edit <code>BLE_CFG</code> at the top of this file to set your service/characteristic UUIDs.</p>
+</div>
 
-        <div class="control-group">
-            <h3>🎨 Color Control</h3>
-            <div class="control-row">
-<!--                 <label>Color:</label> -->
-                <div class="color-picker">
-                    <input type="color" id="colorPicker" onchange="updateColor()" disabled>
-                    <span>R:</span><span class="value-display" id="redValue">255</span>
-                    <span>G:</span><span class="value-display" id="greenValue">0</span>
-                    <span>B:</span><span class="value-display" id="blueValue">0</span>
-                </div>
-            </div>
-        </div>
+<!-- ── BLE status bar (shown once connected) ──────────────────────── -->
+<div id="ble-bar" style="display:none">
+  <div id="ble-dot"></div>
+  <span id="ble-devname">Connecting…</span>
+  <div id="ble-tx"></div>
+  <button id="btn-ble-disc" onclick="bleDisconnect()">Disconnect</button>
+</div>
 
-        <div class="control-group">
-            <h3>✨ Effects</h3>
-            <div class="control-row">
-<!-- 			  <label for="effectSelect">Effect:</label> -->
-			  <select id="effectSelect" onchange="updateEffect()" disabled>
-				<option value="0">Static</option>
-				<option value="1">Blink</option>
-				<option value="2">Breath</option>
-				<option value="3">Color Wipe</option>
-				<option value="4">Color Wipe Random</option>
-				<option value="5">Random Color</option>
-				<option value="6">Color Sweep</option>
-				<option value="7">Dynamic</option>
-				<option value="8">Rainbow</option>
-				<option value="9">Rainbow Cycle</option>
-				<option value="10">Scan</option>
-				<option value="11">Dual Scan</option>
-				<option value="12">Fade</option>
-				<option value="13">Theater Chase</option>
-				<option value="14">Theater Chase Rainbow</option>
-				<option value="15">Running Lights</option>
-				<option value="16">Saw</option>
-				<option value="17">Twinkle</option>
-				<option value="18">Dissolve</option>
-				<option value="19">Dissolve Random</option>
-				<option value="20">Sparkle</option>
-				<option value="21">Flash Sparkle</option>
-				<option value="22">Hyper Sparkle</option>
-				<option value="23">Strobe</option>
-				<option value="24">Strobe Rainbow</option>
-				<option value="25">Multi Strobe</option>
-				<option value="26">Blink Rainbow</option>
-				<option value="27">Android</option>
-				<option value="28">Chase Color</option>
-				<option value="29">Chase Random</option>
-				<option value="30">Chase Rainbow</option>
-				<option value="31">Chase Flash</option>
-				<option value="32">Chase Flash Random</option>
-				<option value="33">Chase Rainbow White</option>
-				<option value="34">Colorful</option>
-				<option value="35">Traffic Light</option>
-				<option value="36">Color Sweep Random</option>
-				<option value="37">Running Color</option>
-				<option value="38">Aurora</option>
-				<option value="39">Running Random</option>
-				<option value="40">Larson Scanner</option>
-				<option value="41">Comet</option>
-				<option value="42">Fireworks</option>
-				<option value="43">Rain</option>
-				<option value="44">Tetrix</option>
-				<option value="45">Fire Flicker</option>
-				<option value="46">Gradient</option>
-				<option value="47">Loading</option>
-				<option value="48">Rolling Balls</option>
-				<option value="49">Fairy</option>
-				<option value="50">Two Dots</option>
-				<option value="51">Fairy Twinkle</option>
-				<option value="52">Running Dual</option>
-				<option value="53">Image</option>
-				<option value="54">Tricolor Chase</option>
-				<option value="55">Tricolor Wipe</option>
-				<option value="56">Tricolor Fade</option>
-				<option value="57">Lightning</option>
-				<option value="58">ICU</option>
-				<option value="59">Multi Comet</option>
-				<option value="60">Dual Larson Scanner</option>
-				<option value="61">Random Chase</option>
-				<option value="62">Oscillate</option>
-				<option value="63">Pride 2015</option>
-				<option value="64">Juggle</option>
-				<option value="65">Palette</option>
-				<option value="66">Fire 2012</option>
-				<option value="67">Colorwaves</option>
-				<option value="68">BPM</option>
-				<option value="69">Fillnoise8</option>
-				<option value="70">Noise16_1</option>
-				<option value="71">Noise16_2</option>
-				<option value="72">Noise16_3</option>
-				<option value="73">Noise16_4</option>
-				<option value="74">Colortwinkle</option>
-				<option value="75">Lake</option>
-				<option value="76">Meteor</option>
-				<option value="77">Copy</option>
-				<option value="78">Railway</option>
-				<option value="79">Ripple</option>
-				<option value="80">Twinklefox</option>
-				<option value="81">Twinklecat</option>
-				<option value="82">Halloween Eyes</option>
-				<option value="83">Static Pattern</option>
-				<option value="84">Tri Static Pattern</option>
-				<option value="85">Spots</option>
-				<option value="86">Spots Fade</option>
-				<option value="87">Glitter</option>
-				<option value="88">Candle</option>
-				<option value="89">Starburst</option>
-				<option value="90">Exploding Fireworks</option>
-				<option value="91">Bouncing Balls</option>
-				<option value="92">Sinelon</option>
-				<option value="93">Sinelon Dual</option>
-				<option value="94">Sinelon Rainbow</option>
-				<option value="95">Popcorn</option>
-				<option value="96">Drip</option>
-				<option value="97">Plasma</option>
-				<option value="98">Percent</option>
-				<option value="99">Ripple Rainbow</option>
-				<option value="100">Heartbeat</option>
-				<option value="101">Pacifica</option>
-				<option value="102">Candle Multi</option>
-				<option value="103">Solid Glitter</option>
-				<option value="104">Sunrise</option>
-				<option value="105">Phased</option>
-				<option value="106">TwinkleUp</option>
-				<option value="107">Noisepal</option>
-				<option value="108">Sinewave</option>
-				<option value="109">PhasedNoise</option>
-				<option value="110">Flow</option>
-				<option value="111">ChunChun</option>
-				<option value="112">Dancing Shadows</option>
-				<option value="113">Washing Machine</option>
-				<option value="114">2DPlasmaRotoZoom</option>
-				<option value="115">Blends</option>
-				<option value="116">TV Simulator</option>
-				<option value="117">Dynamic Smooth</option>
-				<option value="118">2D Spaceships</option>
-				<option value="119">2D Crazy Bees</option>
-				<option value="120">2D Ghost Rider</option>
-				<option value="121">2D Blobs</option>
-				<option value="122">2D Scroll Text</option>
-				<option value="123">2D Drift Rose</option>
-				<option value="124">2D Distortion Waves</option>
-				<option value="125">2D Soap</option>
-				<option value="126">2D Octopus</option>
-				<option value="127">2D Waving Cell</option>
-				<option value="128">Pixels</option>
-				<option value="129">Pixelwave</option>
-				<option value="130">Juggles</option>
-				<option value="131">Matripix</option>
-				<option value="132">Gravimeter</option>
-				<option value="133">Plasmoid</option>
-				<option value="134">Puddles</option>
-				<option value="135">Midnoise</option>
-				<option value="136">Noisemeter</option>
-				<option value="137">Freqwave</option>
-				<option value="138">Freqmatrix</option>
-				<option value="139">2DGEQ</option>
-				<option value="140">Waterfall</option>
-				<option value="141">Freqpixels</option>
-				<option value="142">Binmap</option>
-				<option value="143">Noisefire</option>
-				<option value="144">Puddlepeak</option>
-				<option value="145">Noisemove</option>
-				<option value="146">2DNoise</option>
-				<option value="147">Perlinmove</option>
-				<option value="148">Ripplepeak</option>
-				<option value="149">2DFireNoise</option>
-				<option value="150">2DSquared Swirl</option>
-				<option value="152">2DDNA</option>
-				<option value="153">2DMatrix</option>
-				<option value="154">2DMetaballs</option>
-				<option value="155">Freqmap</option>
-				<option value="156">Gravcenter</option>
-				<option value="157">Gravcentric</option>
-				<option value="158">Gravfreq</option>
-				<option value="159">DJLight</option>
-				<option value="160">2DFunkyPlank</option>
-				<option value="162">2DPulser</option>
-				<option value="163">Blurz</option>
-				<option value="164">2DDrift</option>
-				<option value="165">2DWaverly</option>
-				<option value="166">2DSunRadiation</option>
-				<option value="167">2DColoredBursts</option>
-				<option value="168">2DJuLia</option>
-				<option value="172">2DGameOfLife</option>
-				<option value="173">2DTartan</option>
-				<option value="174">2DPolarLights</option>
-				<option value="175">2DSwirl</option>
-				<option value="176">2DLissajous</option>
-				<option value="177">2DFrizzles</option>
-				<option value="178">2DPlasmaBall</option>
-				<option value="179">FlowStripe</option>
-				<option value="180">2DHipHotic</option>
-				<option value="181">2DSinDots</option>
-				<option value="182">2DDNASpiral</option>
-				<option value="183">2DBlackHole</option>
-				<option value="184">WaveSins</option>
-				<option value="185">RockTaves</option>
-				<option value="186">2DAkemi</option>
-				<!-- add more as needed -->
-			  </select>
-			</div>
-            <div class="control-row">
-                <label>Speed:</label>
-                <input type="range" id="speedSlider" min="0" max="255" value="128" 
-                       oninput="updateSpeed(this.value)" disabled>
-                <span class="value-display" id="speedValue">128</span>
-            </div>
-            <div class="control-row">
-                <label>Intensity:</label>
-                <input type="range" id="intensitySlider" min="0" max="255" value="128" 
-                       oninput="updateIntensity(this.value)" disabled>
-                <span class="value-display" id="intensityValue">128</span>
-            </div>
-        </div>
+<!-- ── Main WLED UI (original structure) ─────────────────────────── -->
+<div id="cv" class="overlay">Loading WLED UI…</div>
+<noscript><div class="overlay" style="opacity:1">Sorry, WLED UI needs JavaScript!</div></noscript>
 
-        <div class="control-group">
-            <h3>📋 Presets</h3>
-            <div class="control-row">
-                <label>Preset:</label>
-                <input type="number" id="presetInput" min="0" max="255" value="1" disabled>
-                <button onclick="applyPreset()" disabled id="presetBtn">Apply Preset</button>
-            </div>
-        </div>
-
-        <div class="control-group">
-            <h3>📝 JSON Commands</h3>
-            <textarea class="json-command" id="jsonCommand" placeholder='{"on":true,"bri":200,"seg":[{"col":[[255,0,0]]}]}' disabled></textarea>
-            <br><br>
-            <button onclick="sendJsonCommand()" disabled id="jsonBtn">Send JSON</button>
-        </div>
-
-        <div class="control-group">
-            <h3>📊 Console Log</h3>
-            <div class="log" id="logArea"></div>
-            <br>
-            <button onclick="clearLog()">Clear Log</button>
-        </div>
+<div class="wrapper" id="top">
+  <div class="tab top">
+    <div class="btnwrap" id="buttonBar">
+      <button id="buttonPower" onclick="togglePower()" class="tgl"><i class="icons">&#xe08f;</i><p class="tab-label">Power</p></button>
+      <button id="buttonNl"    onclick="toggleNl()"><i class="icons">&#xe2a2;</i><p class="tab-label">Timer</p></button>
+      <button id="buttonSync"  onclick="toggleSync()"><i class="icons">&#xe116;</i><p class="tab-label">Sync</p></button>
+      <button id="buttonSr"    onclick="toggleLiveview()"><i class="icons">&#xe410;</i><p class="tab-label">Peek</p></button>
+      <button id="buttonI"     onclick="toggleInfo()"><i class="icons">&#xe066;</i><p class="tab-label">Info</p></button>
+      <button id="buttonNodes" onclick="toggleNodes()" style="display:none"><i class="icons">&#xe22d;</i><p class="tab-label">Nodes</p></button>
+      <button onclick="window.location.href='settings.htm'"><i class="icons">&#xe0a2;</i><p class="tab-label">Config</p></button>
+      <button id="buttonPcm"   onclick="togglePcMode(true)"><i class="icons">&#xe23d;</i><p class="tab-label">PC Mode</p></button>
     </div>
+    <div id="briwrap">
+      <p class="hd">Brightness</p>
+      <div class="slider">
+        <i class="icons slider-icon" onclick="tglTheme()" style="transform:translateY(2px)">&#xe2a6;</i>
+        <div class="sliderwrap il">
+          <input id="sliderBri" onchange="setBri()" oninput="updateTrail(this)" max="255" min="1" type="range" value="128">
+          <div class="sliderdisplay"></div>
+        </div>
+        <output class="sliderbubble"></output>
+      </div>
+    </div>
+    <iframe id="liveview" src="about:blank"></iframe>
+  </div>
+</div>
 
-    <script>
-        // WLED BLE Service and Characteristic UUIDs
-        const SERVICE_UUID = '12345678-1234-1234-1234-123456789abc';
-        const CHAR_UUIDS = {
-            power: '12345678-1234-1234-1234-123456789abd',
-            brightness: '12345678-1234-1234-1234-123456789abe',
-            color: '12345678-1234-1234-1234-123456789abf',
-            effect: '12345678-1234-1234-1234-123456789ac0',
-            speed: '12345678-1234-1234-1234-123456789ab5',
-            intensity: '12345678-1234-1234-1234-123456789ab6',
-            preset: '12345678-1234-1234-1234-123456789ab7',
-            status: '12345678-1234-1234-1234-123456789ab8',
-            jsonCmd: '12345678-1234-1234-1234-123456789ab9'
-        };
+<div id="_C" class="container horizontal-layout">
+  <div class="sections-grid">
+    <!-- Colors Section -->
+    <div class="section">
+      <p class="labels hd section-hdr">Colors</p>
+    <div id="picker" class="noslide"></div>
+    <div id="hwrap" class="slider">
+      <div title="Hue" class="sliderwrap il">
+        <input id="sliderH" class="noslide" oninput="fromH()" onchange="setColor(0)" max="359" min="0" type="range" value="0" step="any">
+        <div class="sliderdisplay" style="background:linear-gradient(90deg,#f00 2%,#ff0 19%,#0f0 35%,#0ff 52%,#00f 68%,#f0f 85%,#f00)"></div>
+      </div>
+    </div>
+    <div id="swrap" class="slider">
+      <div title="Saturation" class="sliderwrap il">
+        <input id="sliderS" class="noslide" oninput="fromS()" onchange="setColor(0)" max="100" min="0" type="range" value="100" step="any">
+        <div class="sliderdisplay" style="background:linear-gradient(90deg,#aaa 0%,#f00)"></div>
+      </div>
+    </div>
+    <div id="vwrap" class="slider">
+      <div title="Value/Brightness" class="sliderwrap il">
+        <input id="sliderV" class="noslide" oninput="fromV()" onchange="setColor(0)" max="100" min="0" type="range" value="100" step="any">
+        <div class="sliderdisplay"></div>
+      </div>
+    </div>
+    <div id="kwrap" class="slider">
+      <div title="Kelvin/Temperature" class="sliderwrap il">
+        <input id="sliderK" class="noslide" oninput="fromK()" onchange="setColor(0)" max="10091" min="1900" type="range" value="6550">
+        <div class="sliderdisplay"></div>
+      </div>
+    </div>
+    <div id="rgbwrap">
+      <div id="rwrap" class="slider">
+        <div title="Red channel" class="sliderwrap il">
+          <input id="sliderR" class="noslide" oninput="fromRgb()" onchange="setColor(0)" max="255" min="0" type="range" value="128">
+          <div class="sliderdisplay"></div>
+        </div>
+      </div>
+      <div id="gwrap" class="slider">
+        <div title="Green channel" class="sliderwrap il">
+          <input id="sliderG" class="noslide" oninput="fromRgb()" onchange="setColor(0)" max="255" min="0" type="range" value="128">
+          <div class="sliderdisplay"></div>
+        </div>
+      </div>
+      <div id="bwrap" class="slider">
+        <div title="Blue channel" class="sliderwrap il">
+          <input id="sliderB" class="noslide" oninput="fromRgb()" onchange="setColor(0)" max="255" min="0" type="range" value="128">
+          <div class="sliderdisplay"></div>
+        </div>
+      </div>
+    </div>
+    <div id="wwrap" class="slider">
+      <div id="whibri" title="White channel" class="sliderwrap il">
+        <input id="sliderW" class="noslide" oninput="fromW()" onchange="setColor(0)" max="255" min="0" type="range" value="128">
+        <div class="sliderdisplay"></div>
+      </div>
+    </div>
+    <div id="wbal" class="slider">
+      <div title="White balance" class="sliderwrap il">
+        <input id="sliderA" class="noslide" onchange="setBalance(this.value)" max="255" min="0" type="range" value="128">
+        <div class="sliderdisplay"></div>
+      </div>
+    </div>
+    <div id="qcs-w">
+      <div class="qcs" onclick="pC('#ff0000')" style="background:#ff0000"></div>
+      <div class="qcs" onclick="pC('#ffa000')" style="background:#ffa000"></div>
+      <div class="qcs" onclick="pC('#ffc800')" style="background:#ffc800"></div>
+      <div class="qcs" onclick="pC('#ffe0a0')" style="background:#ffe0a0"></div>
+      <div class="qcs qcsw" onclick="pC('#ffffff')" style="background:#fff"></div>
+      <div class="qcs qcsb" onclick="pC('#000000')" style="background:#000"></div><br>
+      <div class="qcs" onclick="pC('#ff00ff')" style="background:#ff00ff"></div>
+      <div class="qcs" onclick="pC('#0000ff')" style="background:#0000ff"></div>
+      <div class="qcs" onclick="pC('#00ffc8')" style="background:#00ffc8"></div>
+      <div class="qcs" onclick="pC('#08ff00')" style="background:#08ff00"></div>
+      <div class="qcs" onclick="pC('rnd')" title="Random" style="background:linear-gradient(to right,red,orange,yellow,green,blue,purple);transform:translateY(-11px)">R</div>
+    </div>
+    <div id="csl">
+      <button id="csl0" title="Select slot" class="btn" onclick="selectSlot(0)" data-r="0" data-g="0" data-b="0" data-w="0">1</button>
+      <button id="csl1" title="Select slot" class="btn" onclick="selectSlot(1)" data-r="0" data-g="0" data-b="0" data-w="0">2</button>
+      <button id="csl2" title="Select slot" class="btn" onclick="selectSlot(2)" data-r="0" data-g="0" data-b="0" data-w="0">3</button>
+    </div>
+    <p class="labels h" id="cslLabel"></p>
+    <div id="hexw">
+      <i class="icons sel-icon" onclick="tglRgb()">&#xe22d;</i>
+      <input id="hexc" title="Hex RGB" type="text" class="noslide" onkeydown="hexEnter()" autocomplete="off" maxlength="8">
+      <button id="hexcnf" class="btn btn-xs" onclick="fromHex()"><i class="icons btn-icon">&#xe390;</i></button>
+    </div>
+    <div style="padding:8px 0" id="btns">
+      <button class="btn btn-xs" title="Custom palettes" type="button" id="editPal" onclick="showToast('Custom palettes not available over BLE')"><i class="icons btn-icon">&#xe2b3;</i></button>
+    </div>
+    <p class="labels hd" id="pall"><i class="icons sel-icon" onclick="tglHex()">&#xe2b3;</i> Color palette</p>
+    <div id="palw" class="il">
+      <div class="staytop fnd">
+        <input type="text" placeholder="Search" oninput="search(this,'pallist')" onfocus="search(this,'pallist')">
+        <i class="icons clear-icon" onclick="clean(this)">&#xe38f;</i>
+        <i class="icons search-icon">&#xe0a1;</i>
+      </div>
+      <div id="pallist" class="list">
+        <div class="lstI"><label class="radio schkl" onclick="loadPalettes()"><div class="lstIcontent"><span class="lstIname">Loading…</span></div></label></div>
+      </div>
+    </div>
+    </div>
+    
+    <!-- Effects Section -->
+    <div class="section">
+      <p class="labels hd section-hdr">Effects</p>
+    <div id="fx">
+      <p class="labels hd" id="modeLabel">Effect mode</p>
+      <div class="staytop fnd" id="fxFind" onmousedown="preventBlur(event)">
+        <input type="text" placeholder="Search" oninput="search(this,'fxlist')" onfocus="filterFocus(event);search(this,'fxlist');" onblur="filterFocus(event)">
+        <i class="icons clear-icon" onclick="clean(this)">&#xe38f;</i>
+        <i class="icons search-icon" style="cursor:pointer">&#xe0a1;</i>
+        <div id="filters" class="filter fade">
+          <label id="filterPal"  title="Uses palette"  class="check fchkl">&#x1F3A8;<input type="checkbox" data-flt="&#x1F3A8;" onchange="filterFx()"><span class="checkmark"></span></label>
+          <label id="filter0D"   title="Single pixel"  class="check fchkl">&#8226;<input type="checkbox" data-flt="&#8226;" onchange="filterFx()"><span class="checkmark"></span></label>
+          <label id="filter1D"   title="1D"            class="check fchkl">&#8942;<input type="checkbox" data-flt="&#8942;" onchange="filterFx()"><span class="checkmark"></span></label>
+          <label id="filter2D"   title="2D"            class="check fchkl">&#9638;<input type="checkbox" data-flt="&#9638;" onchange="filterFx()"><span class="checkmark"></span></label>
+          <label id="filterVol"  title="Volume"        class="check fchkl">&#9834;<input type="checkbox" data-flt="&#9834;" onchange="filterFx()"><span class="checkmark"></span></label>
+          <label id="filterFreq" title="Frequency"     class="check fchkl">&#9835;<input type="checkbox" data-flt="&#9835;" onchange="filterFx()"><span class="checkmark"></span></label>
+        </div>
+      </div>
+      <div id="fxlist" class="list">
+        <div class="lstI"><label class="radio schkl" onclick="loadFX()"><div class="lstIcontent"><span class="lstIname">Loading…</span></div></label></div>
+      </div>
+    </div>
+    <div id="sliders">
+      <div id="slider0" class="slider">
+        <i class="icons slider-icon" title="Freeze" onclick="tglFreeze(0)">&#xe325;</i>
+        <div title="Effect speed" class="sliderwrap il">
+          <input id="sliderSpeed" class="noslide" onchange="setSpeed()" oninput="updateTrail(this)" max="255" min="0" type="range" value="128">
+          <div class="sliderdisplay"></div>
+        </div>
+        <output class="sliderbubble"></output>
+      </div>
+      <div id="slider1" class="slider">
+        <i class="icons slider-icon" title="Toggle labels" onclick="tglLabels()">&#xe409;</i>
+        <div title="Effect intensity" class="sliderwrap il">
+          <input id="sliderIntensity" class="noslide" onchange="setIntensity()" oninput="updateTrail(this)" max="255" min="0" type="range" value="128">
+          <div class="sliderdisplay"></div>
+        </div>
+        <output class="sliderbubble"></output>
+      </div>
+      <div id="slider2" class="slider hide">
+        <i class="icons slider-icon">&#xe410;</i>
+        <div title="Custom 1" class="sliderwrap il">
+          <input id="sliderC1" class="noslide" onchange="setCustom(1)" oninput="updateTrail(this)" max="255" min="0" type="range" value="0">
+          <div class="sliderdisplay"></div>
+        </div>
+        <output class="sliderbubble"></output>
+      </div>
+      <div id="slider3" class="slider hide">
+        <i class="icons slider-icon">&#xe0a2;</i>
+        <div title="Custom 2" class="sliderwrap il">
+          <input id="sliderC2" class="noslide" onchange="setCustom(2)" oninput="updateTrail(this)" max="255" min="0" type="range" value="0">
+          <div class="sliderdisplay"></div>
+        </div>
+        <output class="sliderbubble"></output>
+      </div>
+      <div id="slider4" class="slider hide">
+        <i class="icons slider-icon">&#xe0e8;</i>
+        <div title="Custom 3" class="sliderwrap il">
+          <input id="sliderC3" class="noslide" onchange="setCustom(3)" oninput="updateTrail(this)" max="31" min="0" type="range" value="0">
+          <div class="sliderdisplay"></div>
+        </div>
+        <output class="sliderbubble"></output>
+      </div>
+      <div id="fxopt" class="option fade">
+        <label id="opt0" title="Check 1" class="check ochkl hide"><i class="icons">&#xe2b3;</i><input id="checkO1" type="checkbox" onchange="setOption(1,this.checked)"><span class="checkmark"></span></label>
+        <label id="opt1" title="Check 2" class="check ochkl hide"><i class="icons">&#xe34b;</i><input id="checkO2" type="checkbox" onchange="setOption(2,this.checked)"><span class="checkmark"></span></label>
+        <label id="opt2" title="Check 3" class="check ochkl hide"><i class="icons">&#xe04c;</i><input id="checkO3" type="checkbox" onchange="setOption(3,this.checked)"><span class="checkmark"></span></label>
+      </div>
+    </div>
+    </div>
+    
+    <!-- Segments Section -->
+    <div class="section">
+      <p class="labels hd section-hdr" id="segLabel">Segments</p>
+    <div id="segcont">Loading…</div>
+    <div id="segutil" class="staybot"></div>
+    <div id="segutil2">
+      <button class="btn btn-s" id="rsbtn" onclick="rSegs()">Reset segments</button>
+    </div>
+    <p>Transition: <input id="tt" type="number" min="0" max="65.5" step="0.1" value="0.7" onchange="parseFloat(this.value)===0?gId('bsp').classList.add('hide'):gId('bsp').classList.remove('hide');">&nbsp;s</p>
+    <div id="bsp" class="sel-p">
+      <select id="bs" class="sel-ple" onchange="requestJson({'bs':parseInt(this.value)})">
+        <option value="0">Fade</option><option value="1">Fairy Dust</option>
+        <option value="2">Swipe right</option><option value="3">Swipe left</option>
+        <option value="16">Push right</option><option value="17">Push left</option>
+        <option value="4">Outside-in</option><option value="5">Inside-out</option>
+        <option value="6" data-type="2D">Swipe up</option><option value="7" data-type="2D">Swipe down</option>
+        <option value="8" data-type="2D">Open H</option><option value="9" data-type="2D">Open V</option>
+        <option value="18" data-type="2D">Push up</option><option value="19" data-type="2D">Push down</option>
+        <option value="10" data-type="2D">Swipe TL</option><option value="11" data-type="2D">Swipe TR</option>
+        <option value="12" data-type="2D">Swipe BR</option><option value="13" data-type="2D">Swipe BL</option>
+        <option value="14" data-type="2D">Circular Out</option><option value="15" data-type="2D">Circular In</option>
+      </select>
+    </div>
+    <p id="ledmap" class="hide"></p>
+    </div>
+    
+    <!-- Presets Section -->
+    <div class="section">
+      <p class="labels hd section-hdr">Presets</p>
+    <div id="pql"></div>
+    <div class="staytop fnd" id="psFind">
+      <input type="text" placeholder="Search" oninput="search(this,'pcont')" onfocus="search(this,'pcont')">
+      <i class="icons clear-icon" onclick="clean(this)">&#xe38f;</i>
+      <i class="icons search-icon">&#xe0a1;</i>
+    </div>
+    <div id="pcont" class="list"><span onclick="loadPresets()">Loading…</span></div>
+    <div id="putil" class="staybot"></div>
+    </div>
+  </div>
+</div>
 
-        let device = null;
-        let server = null;
-        let service = null;
-        let characteristics = {};
-        let isPowerOn = false;
+<div id="connind"></div>
+<div id="toast" onclick="clearErrorToast(100)"></div>
+<div id="namelabel" onclick="toggleNodes()"></div>
 
-        function log(message) {
-            const logArea = document.getElementById('logArea');
-            const timestamp = new Date().toLocaleTimeString();
-            logArea.textContent += `[${timestamp}] ${message}\n`;
-            logArea.scrollTop = logArea.scrollHeight;
+<!-- Info modal -->
+<div id="info" class="modal">
+  <button class="btn btn-xs close" onclick="toggleInfo()"><i class="icons rot45">&#xe18a;</i></button>
+  <div id="imgw"><img class="wi" alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB0AAAAFCAYAAAC5Fuf5AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAABbSURBVChTlY9bDoAwDMNW7n9nwCipytQN4Z8tbrTHmDmF4oPzyldwRqp1SSdnV/NuZuzqerAByxXznBw3igkeFEfXyUuhK/yFM0CxJfyqXZEOc6/Sr9/bf7uIC5Nwd7orMvAPAAAAAElFTkSuQmCC"/></div>
+  <div id="kv">Loading…</div><br>
+  <div>
+    <button class="btn ibtn" onclick="requestJson()">Refresh</button>
+    <button class="btn ibtn" onclick="toggleNodes()">Instance List</button>
+    <button class="btn ibtn" id="resetbtn" onclick="cnfReset()">Reboot WLED</button>
+  </div>
+  <br><span class="h">Made with&#32;<span id="heart">&#10084;&#xFE0E;</span>&#32;by&#32;<a href="https://github.com/Aircoookie/" target="_blank">Aircoookie</a>&#32;and the&#32;<a href="https://wled.discourse.group/" target="_blank">WLED community</a></span>
+</div>
+
+<!-- Nodes modal -->
+<div id="nodes" class="modal">
+  <button class="btn btn-xs close" onclick="toggleNodes()"><i class="icons rot45">&#xe18a;</i></button>
+  <div id="ndlt">WLED instances</div>
+  <div id="kn">Loading…</div>
+  <div style="position:sticky;bottom:0"><button class="btn ibtn" onclick="loadNodes()">Refresh</button></div>
+</div>
+
+<!-- 2D liveview modal -->
+<div id="mlv2D" class="modal"><div id="klv2D" style="width:100%;height:100%">Loading…</div></div>
+
+<!-- Realtime override modal -->
+<div id="rover" class="modal">
+  <i class="icons huge">&#xe410;</i><br>
+  <div id="lv">?</div><br><br>
+  To use built-in effects, use an override button below.<br>
+  You can return to realtime mode by pressing the star in the top left corner.<br>
+  <button class="btn ibtn" onclick="setLor(1)">Override once</button>
+  <button class="btn ibtn" onclick="setLor(2)">Override until reboot</button><br>
+  <span class="h">For best performance, it is recommended to turn off the streaming source when not in use.</span>
+</div>
+<i id="roverstar" class="icons huge" onclick="setLor(0)">&#xe410;</i>
+
+<!-- iro.js color picker (loaded inline to avoid external deps) -->
+<script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5/dist/iro.min.js"></script>
+<!-- rangetouch for touch-friendly range inputs -->
+<script src="https://cdn.jsdelivr.net/npm/rangetouch@2/dist/rangetouch.umd.js"></script>
+
+<script>
+"use strict";
+
+// ═══════════════════════════════════════════════════════════════════
+// BLE TRANSPORT  —  pure transparent serial bridge
+//
+// Firmware is a pass-through: browser WRITE char → ESP32 Serial1 → WLED
+//                              WLED Serial1 → ESP32 NOTIFY char → browser
+//
+// WRITE char  (browser→device): BLE_CFG.WRITE_CHAR   (...abe)
+// NOTIFY char (device→browser): BLE_CFG.NOTIFY_CHAR  (...abd)
+//
+// No custom protocol. We use WLED's own serial JSON API directly:
+//   Send any WLED JSON state object   → WLED applies it
+//   Send {"v":true}                   → WLED replies with full state JSON
+//   Send {"info":true} (not standard) → we use HTTP-equivalent info request
+//
+// WLED serial responses: each one is a complete JSON object on one line.
+// Types we handle:
+//   {state object}   – bri/on/seg present
+//   {info object}    – ver/leds present  
+//   [array]          – effects list, palettes list, or fxdata
+//   [numbers]        – raw LED color buffer (decimal RGB per LED); we ignore it
+//   {"ps":...}       – preset data (object keyed by preset id)
+// ═══════════════════════════════════════════════════════════════════
+
+// ── BLE_CFG is defined in the inline <script> block at top of file ──
+
+const BLE = (() => {
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+
+  let device = null, gattServer = null;
+  let notifyChar = null, writeChar = null;
+  let connected = false;
+  let rxBuf = "";
+  let lastDisconnectTime = 0;
+
+  // One-shot response queues — FIFO per type
+  const queues = { state:[], info:[], effects:[], palettes:[], fxdata:[], presets:[] };
+
+  // ── UI helpers ────────────────────────────────────────────────────
+  function setOverlayStatus(msg, cls = "") {
+    const el = document.getElementById("ble-status");
+    if (el) { el.textContent = msg; el.className = cls; }
+  }
+  function flashTx() {
+    const el = document.getElementById("ble-tx");
+    if (!el) return;
+    el.classList.add("flash");
+    setTimeout(() => el.classList.remove("flash"), 120);
+  }
+  function updateBar() {
+    const bar = document.getElementById("ble-bar");
+    if (!bar) return;
+    bar.style.display = connected ? "flex" : "none";
+    const dot = document.getElementById("ble-dot");
+    if (dot) dot.className = connected ? "conn" : "";
+    const nm = document.getElementById("ble-devname");
+    if (nm) nm.textContent = device?.name || "WLED-BLE";
+  }
+
+  // ── Connect ───────────────────────────────────────────────────────
+  async function connect() {
+    if (!navigator.bluetooth) {
+      setOverlayStatus("Web Bluetooth not supported — use Chrome or Edge on desktop/Android.", "err");
+      return;
+    }
+    setOverlayStatus("Scanning for WLED-BLE…");
+    document.getElementById("btn-ble-connect").disabled = true;
+
+    try {
+      device = await navigator.bluetooth.requestDevice({
+        filters: [{ services: [BLE_CFG.SERVICE] }],
+        optionalServices: [BLE_CFG.SERVICE]
+      });
+    } catch (e1) {
+      // Fallback: show all devices (user may have a different name)
+      try {
+        device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: [BLE_CFG.SERVICE]
+        });
+      } catch (e2) {
+        setOverlayStatus("Cancelled.", "err");
+        document.getElementById("btn-ble-connect").disabled = false;
+        return;
+      }
+    }
+
+    device.addEventListener("gattserverdisconnected", onDisconnect);
+    setOverlayStatus("Connecting…");
+
+    try {
+      gattServer  = await device.gatt.connect();
+      const svc   = await gattServer.getPrimaryService(BLE_CFG.SERVICE);
+      notifyChar  = await svc.getCharacteristic(BLE_CFG.NOTIFY_CHAR);
+      writeChar   = await svc.getCharacteristic(BLE_CFG.WRITE_CHAR);
+      await notifyChar.startNotifications();
+      notifyChar.addEventListener("characteristicvaluechanged", onNotify);
+    } catch (e) {
+      setOverlayStatus("Connection failed: " + e.message, "err");
+      device = null;
+      document.getElementById("btn-ble-connect").disabled = false;
+      return;
+    }
+
+    connected = true;
+    updateBar();
+    setOverlayStatus("Connected ✓", "ok");
+    document.getElementById("ble-overlay").classList.add("hidden");
+    setTimeout(onLoad, 150);
+  }
+
+  function disconnect() {
+    if (device?.gatt?.connected) device.gatt.disconnect();
+    else onDisconnect();
+  }
+
+  function onDisconnect() {
+    // Check if we're actually disconnected or if this is a spurious event
+    if (device?.gatt?.connected) {
+      console.warn("Spurious disconnection event detected, ignoring");
+      return;
+    }
+    
+    // Debounce - only show disconnection message if it's been more than 2 seconds since last one
+    const now = Date.now();
+    if (now - lastDisconnectTime < 2000) {
+      console.warn("Debouncing repeated disconnection event");
+      return;
+    }
+    lastDisconnectTime = now;
+    
+    connected = false;
+    gattServer = null; notifyChar = null; writeChar = null;
+    rxBuf = "";
+    // Reject all pending promises
+    for (const q of Object.values(queues)) {
+      while (q.length) q.shift().reject(new Error("BLE disconnected"));
+    }
+    updateBar();
+    if (typeof showToast === "function") showToast("BLE disconnected", true);
+    document.getElementById("ble-overlay").classList.remove("hidden");
+    document.getElementById("btn-ble-connect").disabled = false;
+    setOverlayStatus("Disconnected — press Connect to reconnect.");
+  }
+
+  // ── RX: WLED serial output arrives here as BLE notifications ─────
+  // ── Chunk reassembly ─────────────────────────────────────────────
+  // Firmware sends large payloads as numbered chunks prefixed with STX:
+  //   Single packet: plain JSON (no STX prefix)
+  //   Multi-chunk:   \x02N/T:<fragment>   e.g. "\x021/3:[..." "\x022/3:..." "\x023/3:...]"
+  // We collect fragments until chunk N === total T, then parse the joined string.
+  let chunkBuf = {};  // key: total, value: {received: N, parts: []}
+
+  function onNotify(evt) {
+    const bytes = new Uint8Array(evt.target.value.buffer);
+
+    // STX prefix = multi-chunk
+    if (bytes[0] === 0x02) {
+      const text = dec.decode(bytes.slice(1));
+      // Parse "N/T:" header
+      const slash = text.indexOf('/');
+      const colon = text.indexOf(':');
+      if (slash < 0 || colon < 0) return;
+      const n     = parseInt(text.slice(0, slash));
+      const total = parseInt(text.slice(slash + 1, colon));
+      const data  = text.slice(colon + 1);
+
+      if (!chunkBuf[total]) chunkBuf[total] = { received: 0, parts: new Array(total) };
+      chunkBuf[total].parts[n - 1] = data;
+      chunkBuf[total].received++;
+
+      console.debug(`BLE chunk ${n}/${total} (${data.length} bytes)`);
+
+      if (chunkBuf[total].received === total) {
+        const full = chunkBuf[total].parts.join('');
+        delete chunkBuf[total];
+        parseAndDispatch(full);
+      }
+      return;
+    }
+
+    // No STX — plain JSON (single packet or WLED serial line)
+    rxBuf += dec.decode(bytes);
+    let nl;
+    while ((nl = rxBuf.indexOf("\n")) !== -1) {
+      const line = rxBuf.slice(0, nl).trim();
+      rxBuf = rxBuf.slice(nl + 1);
+      if (line) parseAndDispatch(line);
+    }
+    // Also try to parse what we have if it looks like complete JSON
+    // (WLED serial responses don't always end with \n over BLE)
+    if (rxBuf.trim().startsWith('{') || rxBuf.trim().startsWith('[')) {
+      try {
+        JSON.parse(rxBuf.trim()); // test if complete
+        parseAndDispatch(rxBuf.trim());
+        rxBuf = '';
+      } catch(e) { /* incomplete — wait for more */ }
+    }
+  }
+
+  function parseAndDispatch(str) {
+    let obj;
+    try { obj = JSON.parse(str); }
+    catch (e) { console.warn("BLE JSON parse error:", e.message, "|", str.slice(0, 80)); return; }
+    dispatch(obj);
+  }
+
+  // WLED serial only responds to {"v":true} (state+info). Use info to build synthetic lists
+  // and always populate UI (and resolve any pending waiters).
+  function resolvePendingFromStateInfo(info) {
+    if (!info) return;
+    const fxcount = (info.leds && info.leds.fxcount) || (info.fxcount) || 0;
+    const palcount = (info.leds && info.leds.palcount) || (info.palcount) || 0;
+    const syntheticEffects = [
+      "Solid", "Blink", "Breathe", "Wipe", "Wipe Random", "Random Colors", "Sweep", "Dynamic", "Colorloop", "Rainbow", "Scan", "Scan Dual", "Fade", "Theater", "Theater Rainbow", "Running", "Saw", "Twinkle", "Dissolve", "Dissolve Rnd", "Sparkle", "Sparkle Dark", "Sparkle+", "Strobe", "Strobe Rainbow", "Strobe Mega", "Blink Rainbow", "Android", "Chase", "Chase Random", "Chase Rainbow", "Chase Flash", "Chase Flash Rnd", "Rainbow Runner", "Colorful", "Traffic Light", "Sweep Random", "Running Random", "Lighthouse", "Bicolor Chase", "Tricolor Chase", "Twinklecat", "Stream", "Stream 2", "ICU", "Stream Mirror", "Heartbeat", "Pacifica", "Candle", "Fire 2012", "Fireworks", "Fireworks 1D", "Fireworks Starburst", "Rainbow Twinkle", "Drip", "Pixel", "Juggle", "Palette", "Gradient", "Loading", "Paint", "Perlin Move", "Wavesin", "Phased", "Phased Noise", "Sine", "Noise 1", "Noise 2", "Noise 3", "Noise 4", "Celery", "Towel", "Magma", "Plasma", "Ripple", "Ripple Rainbow", "Twinklefox", "Twinkleup", "Halloween Eyes", "Solid Pattern", "Solid Pattern Tri", "Spots", "Spots Fade", "Glitter", "Sunrise", "Colortwinkles", "Lake", "Meteor", "Meteor Smooth", "Gravimeter", "Gravcentric", "Gravfreq", "Firenoise", "Noisefire", "Noisemeter", "Noisemove", "Freqwave", "Freqpixels", "Freqmatrix", "Freqmap", "2D Galaxy", "2D Firenoise 2012", "2D Waterfall", "Pixelwave", "Juggles", "Matripix", "DNA", "DNA Spiral", "Matrix", "Metaballs", "Plasmoid", "Sindots", "Lissajous", "Julia", "Mandelbrot", "Game Of Life", "Life", "Chunchun", "Akemi", "Spaceships", "Ghost Rider", "Crazy Bees", "Octopus", "Blends", "Blobs", "Popcorn", "Distortion Waves", "Squished", "Waving Cell", "Waverly", "Puddlepeak", "Puddles", "Drift", "Drift Rose", "Tartan", "Frizzles", "Rocktaves", "Hiphotic", "Flow", "Flow Stripe", "DJ Light", "Pulser", "Squared Swirl", "Wavesins", "Black Hole", "Colored Bursts", "Plasma Ball", "Sun Radiation", "Polar Lights", "Soap", "Blurz", "Fairy", "Fairytwinkle", "Two Dots", "Two Areas", "Percent", "Scroller", "Scrolling Text", "Railway", "Oscillate", "Pride 2015", "Colorwaves", "Bpm", "Dancing Shadows", "Washing Machine", "Candle Multi", "Fire Flicker", "Tetrix", "Chase 2", "Chase 3", "Center Up", "Center Up 2", "Down Up", "Left Right", "Noise Pal", "Noise Pal Smear", "Water", "Flow 2", "Flow 3", "Flow 4", "Flow 5", "Flow 6", "Flow 7", "Flow 8", "Flow 9", "Flow 10", "Flow 11", "Flow 12", "Flow 13", "Flow 14", "Flow 15", "Flow 16", "Flow 17", "Flow 18", "Flow 19", "Flow 20", "Analogous", "Complementary", "Split", "Triadic", "Tetradic", "Pentadic", "Monochrome", "Dynamic Smooth", "Color 1", "Colors 1&2", "Color Gradient", "Colors Only", "Primary Color", "Random Cycle", "April Night", "Aqua Flash", "Atlantica", "Aurora", "Aurora 2", "Autumn", "Beach", "Beech", "Blink Red", "Breeze", "C9", "C9 2", "C9 New", "Candy", "Candy2", "Cloud", "Cyane", "Departure", "Drywet", "Fairy Reaf", "Fire", "Forest", "Grintage", "Hult", "Hult 64", "Icefire", "Jul", "Landscape", "Lava", "Light Pink", "Lite Light", "Magenta", "Magred", "Ocean", "Orange & Teal", "Orangery", "Party", "Pastel", "Pink Candy", "Rainbow Bands", "Red & Blue", "Red Flash", "Red Reaf", "Red Shift", "Red Tide", "Retro Clown", "Rewhi", "Rivendell", "Sakura", "Semi Blue", "Sherbet", "Splash", "Sunset", "Sunset 2", "Temperature", "Tertiary", "Tiamat", "Toxy Reaf", "Vintage", "Yelblu", "Yelblu Hot", "Yellowout", "Yelmag"
+    ].slice(0, Math.max(1, fxcount));
+    const syntheticPalettes = {
+      0: "Default",
+      1: "Random Cycle",
+      2: "Color 1",
+      3: "Colors 1&2",
+      4: "Color Gradient",
+      5: "Colors Only",
+      6: "Party",
+      7: "Cloud",
+      8: "Lava",
+      9: "Ocean",
+      10: "Forest",
+      11: "Rainbow",
+      12: "Rainbow Bands",
+      13: "Sunset",
+      14: "Rivendell",
+      15: "Breeze",
+      16: "Red & Blue",
+      17: "Yellowout",
+      18: "Analogous",
+      19: "Splash",
+      20: "Pastel",
+      21: "Sunset 2",
+      22: "Beach",
+      23: "Vintage",
+      24: "Departure",
+      25: "Landscape",
+      26: "Beech",
+      27: "Sherbet",
+      28: "Hult",
+      29: "Hult 64",
+      30: "Drywet",
+      31: "Jul",
+      32: "Grintage",
+      33: "Rewhi",
+      34: "Tertiary",
+      35: "Fire",
+      36: "Icefire",
+      37: "Cyane",
+      38: "Light Pink",
+      39: "Autumn",
+      40: "Magenta",
+      41: "Magred",
+      42: "Yelmag",
+      43: "Yelblu",
+      44: "Orange & Teal",
+      45: "Tiamat",
+      46: "April Night",
+      47: "Orangery",
+      48: "C9",
+      49: "Sakura",
+      50: "Atlantica",
+      51: "C9 2",
+      52: "C9 New",
+      53: "Temperature",
+      54: "Aurora",
+      55: "Aurora 2",
+      56: "Retro Clown",
+      57: "Candy",
+      58: "Toxy Reaf",
+      59: "Fairy Reaf",
+      60: "Semi Blue",
+      61: "Pink Candy",
+      62: "Red Reaf",
+      63: "Aqua Flash",
+      64: "Yelblu Hot",
+      65: "Lite Light",
+      66: "Red Flash",
+      67: "Blink Red",
+      68: "Red Shift",
+      69: "Red Tide",
+      70: "Candy2"
+    };
+    // Only include palettes up to the device's palette count
+    const filteredPalettes = {};
+    for (let i = 0; i < Math.max(1, palcount); i++) {
+      filteredPalettes[i] = syntheticPalettes[i] || "Palette " + i;
+    }
+    eJson = [];
+    lJson = [];
+    if (queues.effects && queues.effects.length) {
+      while (queues.effects.length) queues.effects.shift().resolve(syntheticEffects);
+    }
+    if (queues.palettes && queues.palettes.length) {
+      while (queues.palettes.length) queues.palettes.shift().resolve(filteredPalettes);
+    }
+    if (queues.fxdata && queues.fxdata.length) {
+      while (queues.fxdata.length) queues.fxdata.shift().resolve([]);
+    }
+    if (queues.presets && queues.presets.length) {
+      while (queues.presets.length) queues.presets.shift().resolve({});
+    }
+    // Always populate UI from synthetic data when we have state+info (BLE/serial only gets this one response)
+    if (typeof handleEffectsResponse === "function") handleEffectsResponse(syntheticEffects);
+    if (typeof handlePalettesResponse === "function") handlePalettesResponse(filteredPalettes);
+    if (typeof handleFxDataResponse === "function") handleFxDataResponse([]);
+    if (typeof handlePresetsResponse === "function") handlePresetsResponse({});
+  }
+
+  // ── Route parsed JSON to the right handler ────────────────────────
+  function dispatch(obj) {
+    const type = classify(obj);
+    console.debug("BLE RX [" + type + "]:", JSON.stringify(obj).slice(0, 120));
+
+    // If something is waiting for this type, resolve it
+    // state+info satisfies a "state" waiter (requestJson uses waitFor("state"))
+    const resolveType = (type === "state+info") ? "state" : type;
+    if (resolveType && queues[resolveType] && queues[resolveType].length) {
+      queues[resolveType].shift().resolve(obj);
+      if (type === "state+info") resolvePendingFromStateInfo(obj.info);
+      return;
+    }
+
+    // Unsolicited push — route to UI directly (info first so populateSegments has lastinfo)
+    if (type === "state+info") {
+      resolvePendingFromStateInfo(obj.info);
+      if (typeof handleInfoResponse  === "function") handleInfoResponse(obj.info);
+      if (typeof handleJsonResponse  === "function") handleJsonResponse(obj.state);
+    }
+    else if (type === "state")    { if (typeof handleJsonResponse  === "function") handleJsonResponse(obj); }
+    else if (type === "info")     { if (typeof handleInfoResponse  === "function") handleInfoResponse(obj); }
+    else if (type === "effects")  { if (typeof handleEffectsResponse  === "function") handleEffectsResponse(obj); }
+    else if (type === "palettes") { if (typeof handlePalettesResponse === "function") handlePalettesResponse(obj); }
+    else if (type === "fxdata")   { if (typeof handleFxDataResponse   === "function") handleFxDataResponse(obj); }
+    else if (type === "presets")  { if (typeof handlePresetsResponse  === "function") handlePresetsResponse(obj); }
+    // type === "leds": raw LED color buffer from WLED (e.g. after seg/col update) — not a state object, ignore
+  }
+
+  // ── Classify + dispatch a parsed JSON object ─────────────────────
+  // WLED serial {"v":true} response is a merged object: {"state":{...},"info":{...}}
+  // HTTP responses for effects/fxdata/palettes/presets are plain arrays or objects.
+  function classify(obj) {
+    if (!obj) return null;
+
+    // ── Merged state+info (WLED serial {"v":true} response) ──────────
+    if (typeof obj === "object" && !Array.isArray(obj) && obj.state && obj.info) {
+      return "state+info";
+    }
+
+    if (Array.isArray(obj)) {
+      if (obj.length === 0) return null;
+      // Raw LED buffer: array of decimal RGB values (e.g. after segment/color update)
+      if (typeof obj[0] === "number") return "leds";
+      // fxdata: array of strings, each containing ";" separators
+      if (typeof obj[0] === "string" && obj[0].includes(";")) return "fxdata";
+      // effects: array of plain strings (effect names)
+      if (typeof obj[0] === "string") return "effects";
+      // palettes: array of objects like {"0":"Default"} or {id:0, n:"Default"}
+      if (typeof obj[0] === "object") return "palettes";
+      return null;
+    }
+
+    if (typeof obj === "object") {
+      const keys = Object.keys(obj);
+      // Palettes page: object with numeric string keys e.g. {"0":"Default","1":"Random Cycle"}
+      if (keys.length > 0 && keys.every(k => !isNaN(k))) return "palettes";
+      // Presets: object with numeric string keys that have preset data as values
+      if (keys.length > 0 && keys.every(k => !isNaN(k) || k === "0") &&
+          Object.values(obj).every(v => isObj(v) || v === null)) return "presets";
+      // Info standalone
+      if (obj.ver !== undefined && obj.leds !== undefined) return "info";
+      // State standalone
+      if (obj.on !== undefined || (obj.bri !== undefined && obj.seg !== undefined)) return "state";
+      // Error from firmware
+      if (obj.error !== undefined) { console.warn("Firmware error:", obj.error); return null; }
+    }
+    return null;
+  }
+
+  // ── TX: write JSON to WLED via serial bridge ──────────────────────
+  // The firmware adds its own \n, so we do NOT append one here.
+  // WLED serial API accepts JSON objects without a trailing newline,
+  // and the firmware's println() adds the required line terminator.
+  async function send(obj) {
+    if (!connected || !writeChar) { showToast("Not connected", true); return false; }
+    const str = JSON.stringify(obj);
+    console.debug("BLE TX:", str.slice(0, 120));
+    flashTx();
+    try {
+      // Write without response for speed; use withResponse if your MTU needs it
+      await writeChar.writeValueWithoutResponse(enc.encode(str));
+      return true;
+    } catch (e) {
+      // Fallback to write with response
+      try {
+        await writeChar.writeValue(enc.encode(str));
+        return true;
+      } catch (e2) {
+        showToast("BLE write error: " + e2.message, true);
+        return false;
+      }
+    }
+  }
+
+  // ── Request helpers: send a command, wait for a typed response ────
+  function waitFor(type, timeoutMs = 6000) {
+    return new Promise((resolve, reject) => {
+      const t = setTimeout(() => {
+        const idx = queues[type].findIndex(p => p.reject === reject);
+        if (idx !== -1) queues[type].splice(idx, 1);
+        reject(new Error("Timeout waiting for " + type));
+      }, timeoutMs);
+      queues[type].push({
+        resolve: (v) => { clearTimeout(t); resolve(v); },
+        reject:  (e) => { clearTimeout(t); reject(e);  }
+      });
+    });
+  }
+
+  // WLED serial API commands:
+  //   {"v":true}             → full state JSON response
+  //   {"info":true}          → info JSON response  (note: WLED may not support this on serial,
+  //                            but most recent builds do; fallback is it just won't respond)
+  //   {"ef":true}            → effects array
+  //   {"palx":0}             → palette chunk (index 0..N, 8 per page)
+  //   {"fxdata":true}        → fxdata array
+  //   Sending any state obj  → WLED applies + echoes back updated state
+
+  async function getState() {
+    const p = waitFor("state");
+    await send({ v: true });
+    return p;
+  }
+
+  async function getInfo() {
+    const p = waitFor("info");
+    await send({ info: true });
+    return p;
+  }
+
+  async function getEffects() {
+    const p = waitFor("effects");
+    await send({ ef: true });
+    return p;
+  }
+
+  // Palettes: WLED returns them in pages of 8 via {"palx": pageIndex}
+  // We fetch all pages until we get fewer than 8 back
+  async function getPalettes() {
+    const all = {};
+    for (let page = 0; page < 16; page++) {
+      const p = waitFor("palettes", 4000);
+      await send({ palx: page });
+      let chunk;
+      try { chunk = await p; } catch(e) { break; }
+      // chunk is an array of {id: "name"} objects merged into one object
+      // WLED format: [{0:"Default"}, ...] or object {0:"Default", 1:"Random Cycle",...}
+      let entries = [];
+      if (Array.isArray(chunk)) entries = chunk;
+      else if (typeof chunk === "object") entries = Object.entries(chunk).map(([k,v]) => ({[k]:v}));
+      if (entries.length === 0) break;
+      entries.forEach(e => {
+        if (typeof e === "object") Object.assign(all, e);
+      });
+      if (entries.length < 8) break;
+    }
+    // Return as array of [id, name] pairs matching lJson format
+    return Object.entries(all).sort((a,b) => parseInt(a[0])-parseInt(b[0]));
+  }
+
+  async function getFxData() {
+    const p = waitFor("fxdata");
+    await send({ fxdata: true });
+    return p;
+  }
+
+  async function getPresets() {
+    const p = waitFor("presets", 8000);
+    await send({ presets: true });
+    return p;
+  }
+
+  async function postState(obj) {
+    // Send state — WLED echoes back updated state automatically after applying
+    await send(obj);
+  }
+
+  async function getPalettePage(page) {
+    const p = waitFor("palettes", 5000);
+    await send({ palx: page });
+    return p;
+  }
+
+  return {
+    connect, disconnect,
+    isConnected: () => connected,
+    getState, getInfo, getEffects, getPalettePage, getFxData, getPresets,
+    postState,
+    send,
+  };
+})();
+
+// ── Public button handlers ────────────────────────────────────────────
+function bleConnect()    { BLE.connect(); }
+function bleDisconnect() { BLE.disconnect(); }
+
+// ═══════════════════════════════════════════════════════════════════
+// WLED UI LOGIC  (adapted from wled00/data/index.js)
+// ═══════════════════════════════════════════════════════════════════
+
+// ── Globals ─────────────────────────────────────────────────────────
+var loc = false, locip, locproto = "http:";
+var isOn = false, nlA = false, isLv = false, isInfo = false, isNodes = false, syncSend = false;
+var hasWhite = false, hasRGB = false, hasCCT = false, has2D = false;
+var nlDur = 60, nlTar = 0, nlMode = false;
+var segLmax = 0, selectedFx = 0, selectedPal = 0, csel = 0;
+var currentPreset = -1, lastUpdate = 0;
+var segCount = 0, ledCount = 0, lowestUnused = 0, maxSeg = 0, lSeg = 0;
+var pcMode = false, pcModeA = false, lastw = 0, wW;
+var simplifiedUI = false;
+var tr = 7;
+var d = document;
+var retry = false;
+var fxdata = [];
+var pJson = {}, eJson = [], lJson = [];
+var pN = "", pI = 0, pNum = 0;
+var pmt = 1, pmtLS = 0, pmtLast = 0;
+var lastinfo = {};
+var isM = false, mw = 0, mh = 0;
+var iSlide = 0;
+var _C;
+
+var cfg = {
+  theme: { base:"dark", bg:{ url:"", rnd:false }, alpha:{ bg:0.6, tab:0.8 }, color:{ bg:"" } },
+  comp:  { colors:{ picker:true, rgb:false, quick:true, hex:false },
+           labels:true, pcmbot:false, pid:true, seglen:false, segpwr:false, segexp:false,
+           css:false, hdays:false, fxdef:true, on:0, off:0, idsort:false }
+};
+
+// ── Helpers ──────────────────────────────────────────────────────────
+function gId(c)    { return document.getElementById(c); }
+function gEBCN(c)  { return document.getElementsByClassName(c); }
+function isEmpty(o){ return Object.keys(o).length === 0; }
+function isObj(i)  { return i && typeof i === "object" && !Array.isArray(i); }
+function isNumeric(n){ return !isNaN(parseFloat(n)) && isFinite(n); }
+function sCol(na, col){ document.documentElement.style.setProperty(na, col); }
+function mergeDeep(t, s) {
+  const o = Object.assign({}, t);
+  if (isObj(t) && isObj(s)) {
+    Object.keys(s).forEach(k => {
+      if (isObj(s[k])) { if (!(k in t)) Object.assign(o,{[k]:s[k]}); else o[k]=mergeDeep(t[k],s[k]); }
+      else Object.assign(o, {[k]: s[k]});
+    });
+  }
+  return o;
+}
+function rgbStr(a)  { return "rgb("+a.r+","+a.g+","+a.b+")"; }
+function rgbBri(a)  { return 0.2126*parseInt(a.r)+0.7152*parseInt(a.g)+0.0722*parseInt(a.b); }
+function isRgbBlack(a){ return parseInt(a.r)===0 && parseInt(a.g)===0 && parseInt(a.b)===0; }
+
+function setCSL(cs) {
+  let w = cs.dataset.w ? parseInt(cs.dataset.w) : 0;
+  let hasShadow = getComputedStyle(cs).textShadow !== "none";
+  if (hasRGB && !isRgbBlack(cs.dataset)) {
+    if (!hasShadow) cs.style.color = rgbBri(cs.dataset) > 127 ? "#000" : "#fff";
+    cs.style.background = (hasWhite && w > 0)
+      ? `linear-gradient(180deg,${rgbStr(cs.dataset)} 30%,rgb(${w},${w},${w}))` : rgbStr(cs.dataset);
+  } else {
+    if (hasRGB && !hasWhite) w = 0;
+    cs.style.background = `rgb(${w},${w},${w})`;
+    if (!hasShadow) cs.style.color = w > 127 ? "#000" : "#fff";
+  }
+}
+
+// ── Toast ────────────────────────────────────────────────────────────
+var toastTimeout;
+function showToast(txt, err=false) {
+  var x = gId("toast");
+  x.innerHTML = txt;
+  x.classList.add(err ? "error" : "show");
+  clearTimeout(toastTimeout);
+  x.style.animation = "none";
+  toastTimeout = setTimeout(() => { x.classList.remove("show"); }, 2900);
+  if (err) console.log(txt);
+}
+function showErrorToast() { showToast("Connection to light failed!", true); }
+function clearErrorToast(n=5000) {
+  var x = gId("toast");
+  if (x.classList.contains("error")) {
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => { x.classList.remove("show"); x.classList.remove("error"); }, n);
+  }
+}
+
+// ── Trail ────────────────────────────────────────────────────────────
+function updateTrail(el) {
+  if (!el) return;
+  var v = parseInt(el.value), mn = parseInt(el.min)||0, mx = parseInt(el.max)||255;
+  var pct = ((v-mn)/(mx-mn)*100).toFixed(1);
+  var disp = el.parentElement ? el.parentElement.querySelector(".sliderdisplay") : null;
+  if (disp) disp.style.backgroundSize = pct + "% 100%";
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────────
+function updateTablinks(tabI) {
+  var tl = gEBCN("tablinks");
+  if (tl.length === 0) return;
+  for (var i of tl) i.classList.remove("active");
+  tl[tabI].classList.add("active");
+}
+function openTab(tabI, force=false) {
+  // No-op for horizontal layout - all sections are visible
+  return;
+}
+function handleLocationHash() {
+  // No-op for horizontal layout - all sections are visible
+  return;
+}
+
+// ── Size / PC mode ────────────────────────────────────────────────────
+function size() {
+  wW = window.innerWidth;
+  var topEl = gId("top");
+  if (topEl) { var th = topEl.offsetHeight + 18; sCol("--tp", th+"px"); sCol("--th", th+"px"); }
+  var botEl = gId("bot");
+  sCol("--bh", botEl ? botEl.offsetHeight+"px" : "0px");
+}
+function togglePcMode(fromBtn=false) {
+  if (fromBtn && !pcModeA) { pcModeA=true; pcMode=true; }
+  else pcMode = !pcMode;
+  try { localStorage.setItem("pcm", pcMode); } catch(e){}
+  if (pcMode) {
+    _C.style.setProperty("--n","1");
+    _C.style.setProperty("--i","0");
+    _C.classList.add("smooth");
+    if (gId("bot")) gId("bot").style.display = "none";
+  } else {
+    _C.style.setProperty("--n","1");
+    _C.style.setProperty("--i","0");
+    if (gId("bot")) gId("bot").style.display = "";
+  }
+  size();
+}
+
+// ── Theme ─────────────────────────────────────────────────────────────
+function applyCfg() {
+  cTheme(cfg.theme.base === "light");
+  if (cfg.theme.color.bg) sCol("--c-1", cfg.theme.color.bg);
+  var l = cfg.comp.labels;
+  sCol("--tbp", l ? "14px 14px 10px 14px" : "10px 22px 4px 22px");
+  sCol("--bbp", l ? "9px 0 7px 0" : "10px 0 4px 0");
+  sCol("--bhd", l ? "block" : "none");
+  sCol("--bmt", l ? "0px" : "5px");
+  sCol("--t-b", cfg.theme.alpha.tab);
+  size();
+  try { localStorage.setItem("wledUiCfg", JSON.stringify(cfg)); } catch(e){}
+  if (lastinfo.leds) updateUI();
+}
+function tglHex()    { cfg.comp.colors.hex     = !cfg.comp.colors.hex;    applyCfg(); }
+function tglTheme()  { cfg.theme.base = cfg.theme.base==="light" ? "dark" : "light"; applyCfg(); }
+function tglLabels() { cfg.comp.labels         = !cfg.comp.labels;         applyCfg(); }
+function tglRgb()    { cfg.comp.colors.rgb     = !cfg.comp.colors.rgb;
+                       cfg.comp.colors.picker  = !cfg.comp.colors.picker; applyCfg(); }
+
+function cTheme(light) {
+  if (light) {
+    sCol("--c-1","#eee"); sCol("--c-f","#000"); sCol("--c-2","#ddd"); sCol("--c-3","#bbb");
+    sCol("--c-4","#aaa"); sCol("--c-5","#999"); sCol("--c-6","#999"); sCol("--c-8","#888");
+    sCol("--c-b","#444"); sCol("--c-c","#333"); sCol("--c-e","#111"); sCol("--c-d","#222");
+    sCol("--c-r","#a21"); sCol("--c-g","#2a1"); sCol("--c-l","#26c");
+    sCol("--c-o","rgba(204,204,204,0.9)");
+    sCol("--c-sb","#0003"); sCol("--c-sbh","#0006");
+    sCol("--c-tb","rgba(204,204,204,var(--t-b))"); sCol("--c-tba","rgba(170,170,170,var(--t-b))"); sCol("--c-tbh","rgba(204,204,204,var(--t-b))");
+    gId("imgw").style.filter = "invert(0.8)";
+  } else {
+    sCol("--c-1","#111"); sCol("--c-f","#fff"); sCol("--c-2","#222"); sCol("--c-3","#333");
+    sCol("--c-4","#444"); sCol("--c-5","#555"); sCol("--c-6","#666"); sCol("--c-8","#888");
+    sCol("--c-b","#bbb"); sCol("--c-c","#ccc"); sCol("--c-e","#eee"); sCol("--c-d","#ddd");
+    sCol("--c-r","#e42"); sCol("--c-g","#4e2"); sCol("--c-l","#48a");
+    sCol("--c-o","rgba(34,34,34,0.9)");
+    sCol("--c-sb","#fff3"); sCol("--c-sbh","#fff5");
+    sCol("--c-tb","rgba(34,34,34,var(--t-b))"); sCol("--c-tba","rgba(102,102,102,var(--t-b))"); sCol("--c-tbh","rgba(51,51,51,var(--t-b))");
+    gId("imgw").style.filter = "unset";
+  }
+}
+
+// ── onLoad — called after BLE connects ──────────────────────────────
+var cpick;
+function onLoad() {
+  _C = gId("_C");
+  try {
+    var sett = localStorage.getItem("wledUiCfg");
+    if (sett) cfg = mergeDeep(cfg, JSON.parse(sett));
+  } catch(e){}
+
+  // Color picker
+  if (typeof iro !== "undefined") {
+    cpick = new iro.ColorPicker("#picker", {
+      width: 260, wheelLightness: false,
+      wheelAngle: 270, wheelDirection: "clockwise",
+      layout: [{ component: iro.ui.Wheel, options:{} }]
+    });
+    cpick.on("input:end",    () => setColor(1));
+    cpick.on("color:change", () => updatePSliders());
+  }
+
+  if (typeof RangeTouch !== "undefined") RangeTouch.setup('input[type="range"]', {});
+
+  try {
+    if (localStorage.getItem("pcm")==="true" ||
+        (!/Mobi/.test(navigator.userAgent) && localStorage.getItem("pcm")==null))
+      togglePcMode(true);
+  } catch(e){}
+
+  applyCfg();
+  selectSlot(0);
+  updateTablinks(0);
+  handleLocationHash();
+  resetPUtil();
+  initFilters();
+
+  // BLE/serial: WLED only responds to {"v":true} (state+info). Request that once;
+  // dispatch() will populate effects/palettes/fxdata/presets from info (synthetic lists).
+  requestJson();
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && new Date() - lastUpdate > 3000) requestJson();
+  });
+  gId("cv").style.opacity = 0;
+}
+
+// ── Response handlers ─────────────────────────────────────────────────
+function handleEffectsResponse(json) {
+  // WLED returns effects as an array of strings (names)
+  eJson = Array.isArray(json) ? json.map((n, i) => [i, n]) : [];
+  populateEffects();
+}
+function handlePalettesResponse(json) {
+  // WLED /json/palettes returns a plain object: {"0":"Default","1":"Random Cycle",...}
+  // Accumulate pages into lJson — called once per page, merge all
+  let entries = [];
+  if (Array.isArray(json)) {
+    // Array of {"N":"name"} objects
+    json.forEach(e => {
+      if (typeof e === "object") Object.entries(e).forEach(([k,v]) => entries.push([parseInt(k), v]));
+      else if (typeof e === "string") entries.push([entries.length, e]);
+    });
+  } else if (typeof json === "object") {
+    entries = Object.entries(json).map(([k,v]) => [parseInt(k), v]);
+  }
+  // Merge into lJson (avoid duplicates)
+  entries.forEach(([id, name]) => {
+    if (!lJson.find(e => e[0] === id)) lJson.push([id, name]);
+  });
+  populatePalettes();
+}
+function handleFxDataResponse(json) {
+  fxdata = Array.isArray(json) ? json : [];
+  // WLED sends fxdata without Solid; prepend a placeholder
+  if (fxdata.length && !fxdata[0].startsWith(";")) fxdata.unshift(";!;");
+}
+function handlePresetsResponse(json) {
+  pJson = json || {};
+  delete pJson["0"];
+  pmtLast = pmt;
+  populatePresets();
+}
+function handleInfoResponse(info) {
+  if (!info) return;
+  lastinfo = info;
+  parseInfo(info);
+  populateInfo(info);
+}
+function handleJsonResponse(json) {
+  if (!json) return;
+  lastUpdate = new Date();
+  isOn = !!json.on;
+  gId("buttonPower").classList.toggle("on", isOn);
+
+  if (json.bri !== undefined) { gId("sliderBri").value = json.bri; updateTrail(gId("sliderBri")); }
+
+  if (json.nl) {
+    nlA   = json.nl.on;
+    nlDur = json.nl.dur  ?? 60;
+    nlTar = json.nl.tbri ?? 0;
+    nlMode= json.nl.mode ?? 0;
+    gId("buttonNl").classList.toggle("on", nlA);
+  }
+  if (json.udpn) {
+    syncSend = json.udpn.send;
+    gId("buttonSync").classList.toggle("on", syncSend);
+  }
+  if (json.transition !== undefined) {
+    gId("tt").value = (json.transition / 10).toFixed(1);
+    gId("bsp").classList.toggle("hide", json.transition === 0);
+  }
+  if (json.ps !== undefined) currentPreset = json.ps;
+  if (json.seg && json.seg.length) {
+    var s = json.seg[0];
+    if (s.fx  !== undefined) { selectedFx  = s.fx;  highlightFx(); }
+    if (s.pal !== undefined) { selectedPal = s.pal; highlightPal(); }
+    if (s.col && s.col.length) {
+      for (var ci = 0; ci < 3; ci++) {
+        var cs = gId("csl"+ci);
+        if (s.col[ci]) {
+          cs.dataset.r = s.col[ci][0]||0; cs.dataset.g = s.col[ci][1]||0;
+          cs.dataset.b = s.col[ci][2]||0; cs.dataset.w = s.col[ci][3]||0;
+          setCSL(cs);
         }
+      }
+      selectSlot(csel);
+    }
+    if (s.sx !== undefined) { gId("sliderSpeed").value     = s.sx; updateTrail(gId("sliderSpeed")); }
+    if (s.ix !== undefined) { gId("sliderIntensity").value = s.ix; updateTrail(gId("sliderIntensity")); }
+    if (s.c1 !== undefined) { gId("sliderC1").value = s.c1; updateTrail(gId("sliderC1")); }
+    if (s.c2 !== undefined) { gId("sliderC2").value = s.c2; updateTrail(gId("sliderC2")); }
+    if (s.c3 !== undefined) { gId("sliderC3").value = s.c3; updateTrail(gId("sliderC3")); }
+    updateFxOpts(s);
+  }
+  if (json.seg) populateSegments(json);
+  updatePA();
+}
 
-        function clearLog() {
-            document.getElementById('logArea').textContent = '';
-        }
+// ── requestJson — central command (replaces HTTP /json/state) ────────
+var pendingRequest = false;
+async function requestJson(payload=null) {
+  if (!BLE.isConnected()) return;
+  if (payload !== null) {
+    // Apply state change; WLED echoes back updated state automatically
+    await BLE.postState(payload);
+    return;
+  }
+  if (pendingRequest) return;
+  pendingRequest = true;
+  gId("cv").style.opacity = 0.3;
+  try {
+    // {"v":true} makes WLED return {"state":{...},"info":{...}} merged.
+    // classify() splits them and routes each to its handler.
+    const resp = await BLE.getState();
+    if (resp && resp.state && resp.info) {
+      handleInfoResponse(resp.info);
+      handleJsonResponse(resp.state);
+    } else if (resp) {
+      handleJsonResponse(resp);
+    }
+  } catch(e) {
+    showToast("No response from WLED", true);
+  }
+  gId("cv").style.opacity = 0;
+  pendingRequest = false;
+}
 
-        function updateStatus(status, isConnected) {
-            const statusDiv = document.getElementById('status');
-            const statusText = document.getElementById('statusText');
-            const connectBtn = document.getElementById('connectBtn');
-            const disconnectBtn = document.getElementById('disconnectBtn');
-            
-            statusText.textContent = status;
-            statusDiv.className = `status ${isConnected ? 'connected' : 'disconnected'}`;
-            
-            connectBtn.style.display = isConnected ? 'none' : 'inline-block';
-            disconnectBtn.style.display = isConnected ? 'inline-block' : 'none';
-            
-            // Enable/disable all controls
-            const controls = document.querySelectorAll('input, select, button:not(#connectBtn):not(#disconnectBtn):not([onclick="clearLog()"])');
-            controls.forEach(control => {
-                control.disabled = !isConnected;
-            });
-        }
+// ── parseInfo ─────────────────────────────────────────────────────────
+function parseInfo(i) {
+  lastinfo = i;
+  var name = i.name || "WLED";
+  gId("namelabel").innerHTML = name;
+  if (!name.match(/[\u3040-\u30ff\u3400-\u9fff]/))
+    gId("namelabel").style.transform = "rotate(180deg)";
+  d.title = (i.live ? "(Live) " : "") + name;
+  simplifiedUI = i.simplifiedui;
+  ledCount = i.leds ? i.leds.count : 0;
+  maxSeg   = i.leds ? (i.leds.maxseg || 16) : 16;
+  pmt      = i.fs   ? i.fs.pmt : 1;
+  mw = i.leds && i.leds.matrix ? i.leds.matrix.w : 0;
+  mh = i.leds && i.leds.matrix ? i.leds.matrix.h : 0;
+  isM = mw > 0 && mh > 0;
+  if (!isM) {
+    gId("filter2D").classList.add("hide");
+    gId("bs").querySelectorAll('option[data-type="2D"]').forEach(o => o.style.display="none");
+  }
+  gId("buttonNodes").style.display = i.ndc > 0 ? null : "none";
+  updateUI();
+}
 
-        async function connectToDevice() {
-            try {
-                updateStatus('Scanning for WLED-BLE...', false);
-                document.getElementById('status').classList.add('connecting');
-                
-                log('Requesting Bluetooth device...');
-                device = await navigator.bluetooth.requestDevice({
-                    filters: [{ name: 'WLED-BLE' }],
-                    optionalServices: [SERVICE_UUID]
-                });
+function populateInfo(i) {
+  var pwr = i.leds ? i.leds.pwr : 0;
+  var pwru = "Not calculated";
+  if (pwr > 1000) { pwr/=1000; pwru=pwr.toFixed(pwr>10?0:1)+" A"; }
+  else if (pwr > 0) { pwr=50*Math.round(pwr/50); pwru=pwr+" mA"; }
+  var urows = "";
+  if (i.u) { for (const [k,v] of Object.entries(i.u)) urows += inforow(k, Array.isArray(v)?v[0]:v, Array.isArray(v)?v[1]:""); }
+  gId("kv").innerHTML = `v${i.ver||"?"} "${i.cn||"WLED"}"<br><br><table>
+    ${urows}${urows?'<tr><td colspan=2><hr style="height:1px;border:0;background:gray"></td></tr>':""}
+    ${i.build ? inforow("Build", i.build) : ""}
+    ${i.wifi  ? inforow("Signal", i.wifi.signal+"% ("+i.wifi.rssi+" dBm)") : ""}
+    ${inforow("Uptime", getRuntimeStr(i.uptime||0))}
+    ${i.freeheap ? inforow("Free heap", (i.freeheap/1024).toFixed(1)+" kB") : ""}
+    ${inforow("Est. current", pwru)}
+    ${i.leds ? inforow("FPS", i.leds.fps) : ""}
+    ${i.mac  ? inforow("MAC", i.mac) : ""}
+  </table>`;
+}
+function inforow(k, v, u="") { return `<tr><td class="keytd">${k}</td><td class="valtd">${v}${u}</td></tr>`; }
+function getRuntimeStr(t) {
+  t = parseInt(t);
+  var days=Math.floor(t/86400), hrs=Math.floor((t-days*86400)/3600), mins=Math.floor((t-days*86400-hrs*3600)/60);
+  var s = days?(days+" "+(days===1?"day":"days")+", "):"";
+  s += (hrs||days) ? hrs+" "+(hrs===1?"hour":"hours") : "";
+  if (!days && hrs) s += ", ";
+  if (t>59 && !days) s += mins+" min";
+  if (t<3600 && t>59) s += ", ";
+  if (t<3600) s += (t-mins*60)+" sec";
+  return s;
+}
 
-                log(`Connecting to ${device.name}...`);
-                server = await device.gatt.connect();
-                
-                log('Getting WLED service...');
-                service = await server.getPrimaryService(SERVICE_UUID);
-                
-                log('Getting characteristics...');
-                for (const [name, uuid] of Object.entries(CHAR_UUIDS)) {
-                    try {
-                        characteristics[name] = await service.getCharacteristic(uuid);
-                        log(`✓ Got ${name} characteristic`);
-                    } catch (error) {
-                        log(`✗ Failed to get ${name} characteristic: ${error.message}`);
-                    }
-                }
-                
-                // Subscribe to status notifications
-                if (characteristics.status) {
-                    await characteristics.status.startNotifications();
-                    characteristics.status.addEventListener('characteristicvaluechanged', handleStatusUpdate);
-                    log('✓ Subscribed to status notifications');
-                }
-                
-                document.getElementById('status').classList.remove('connecting');
-                updateStatus('Connected to WLED-BLE', true);
-                log('🎉 Connected successfully!');
-                
-                // Read initial state
-                await readCurrentState();
-                
-            } catch (error) {
-                document.getElementById('status').classList.remove('connecting');
-                updateStatus('Connection failed', false);
-                log(`❌ Connection error: ${error.message}`);
-            }
-        }
+// ── updateUI ─────────────────────────────────────────────────────────
+function updateUI() {
+  var li = lastinfo;
+  if (!li || !li.leds) return;
+  hasRGB   = li.leds.rgbw !== false;
+  hasWhite = !!(li.leds.wv !== false && li.leds.rgbw);
+  hasCCT   = !!li.leds.cct;
+  gId("rgbwrap").style.display = (cfg.comp.colors.rgb && hasRGB) ? "" : "none";
+  gId("wwrap").style.display   = hasWhite ? "" : "none";
+  gId("wbal").style.display    = hasCCT   ? "" : "none";
+  gId("kwrap").style.display   = hasCCT   ? "" : "none";
+  gId("swrap").style.display   = cfg.comp.colors.picker ? "" : "none";
+  gId("hwrap").style.display   = cfg.comp.colors.picker ? "" : "none";
+  gId("vwrap").style.display   = cfg.comp.colors.picker ? "" : "none";
+  gId("qcs-w").style.display   = cfg.comp.colors.quick  ? "" : "none";
+  gId("hexw").style.display    = cfg.comp.colors.hex    ? "" : "none";
+  gId("picker").style.display  = cfg.comp.colors.picker ? "" : "none";
+}
 
-        async function disconnectDevice() {
-            if (device && device.gatt.connected) {
-                device.gatt.disconnect();
-                updateStatus('Disconnected', false);
-                log('Disconnected from device');
-            }
-        }
+// ── loadFX / loadFXData / loadPalettes — BLE version ─────────────────
+function loadFX(callback=null) {
+  BLE.getEffects()
+    .then(json => { handleEffectsResponse(json); })
+    .catch(e  => { showToast("Effects load failed: "+e.message, true); })
+    .finally(() => { if (callback) callback(); });
+}
+function loadFXData(callback=null) {
+  BLE.getFxData()
+    .then(json => { handleFxDataResponse(json); })
+    .catch(() => { fxdata = []; })
+    .finally(() => { if (callback) callback(); });
+}
+function loadPalettes(callback=null) {
+  lJson = []; // reset before fresh load
+  loadPalettePage(0, callback);
+}
 
-        async function readCurrentState() {
-            try {
-                // Read current power state
-                if (characteristics.power) {
-                    const powerValue = await characteristics.power.readValue();
-                    isPowerOn = powerValue.getUint8(0) !== 0;
-                    document.getElementById('powerBtn').textContent = isPowerOn ? 'Turn Off' : 'Turn On';
-                }
-                
-                // Read current brightness
-                if (characteristics.brightness) {
-                    const brightnessValue = await characteristics.brightness.readValue();
-                    const brightness = brightnessValue.getUint8(0);
-                    document.getElementById('brightnessSlider').value = brightness;
-                    document.getElementById('brightnessValue').textContent = brightness;
-                }
-				
-							// 🎨 Color (new)
-				if (characteristics.color) {
-				  const colorValue = await characteristics.color.readValue();
-				  const r = colorValue.getUint8(0);
-				  const g = colorValue.getUint8(1);
-				  const b = colorValue.getUint8(2);
+function loadPalettePage(page, callback=null) {
+  BLE.getPalettePage(page)
+    .then(json => {
+      const prevLen = lJson.length;
+      handlePalettesResponse(json);
+      const newLen = lJson.length;
+      const added = newLen - prevLen;
+      // WLED returns 8 per page; if we got fewer we are done
+      if (added >= 8) {
+        setTimeout(() => loadPalettePage(page + 1, callback), 50);
+      } else {
+        if (callback) callback();
+      }
+    })
+    .catch(e => {
+      showToast("Palettes load failed: " + e.message, true);
+      if (callback) callback();
+    });
+}
+function loadPalettesData(callback=null) { if (callback) callback(); } // not needed over serial
 
-				  // update R/G/B text
-				  document.getElementById('redValue').textContent = r;
-				  document.getElementById('greenValue').textContent = g;
-				  document.getElementById('blueValue').textContent = b;
+// ── populateEffects ───────────────────────────────────────────────────
+function populateEffects() {
+  var effects = eJson.slice(); // [[id, name], ...]
+  // Remove Solid (id 0) from sorted list, then re-insert at top
+  var solidIdx = effects.findIndex(e => e[0] === 0);
+  var solidName = solidIdx >= 0 ? effects.splice(solidIdx, 1)[0][1] : "Solid";
+  effects.sort((a, b) => a[1].localeCompare(b[1]));
+  effects.unshift([0, solidName]);
 
-				  // build hex and update color picker
-				  const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-				  document.getElementById('colorPicker').value = hex;
-				}
-                
-				// Read current effect
-				if (characteristics.effect) {
-					const effectValue = await characteristics.effect.readValue();
-					const effectId = effectValue.getUint8(0);
-					document.getElementById('effectSelect').value = effectId;
-					log(`✓ Current effect ID: ${effectId}`);
-				}
+  var html = "";
+  for (let [id, name] of effects) {
+    let nm = name + " ";
+    let fd = "";
+    if (name.indexOf("RSVD") < 0) {
+      if (Array.isArray(fxdata) && fxdata.length > id) {
+        fd = fxdata[id] || "";
+        if (fd.length === 0) fd = ";;!;1";
+        let eP = fd ? fd.split(";") : [];
+        let p  = (eP.length < 3 || eP[2]==="") ? [] : eP[2].split(",");
+        if (p.length > 0 && p[0] !== "" && !isNumeric(p[0])) nm += "&#x1F3A8;";
+        let m = (eP.length < 4 || eP[3]==="") ? "1" : eP[3];
+        if (id === 0) m = "";
+        if (m.includes("0")) nm += "&#8226;";
+        if (m.includes("1")) nm += "&#8942;";
+        if (m.includes("2")) nm += "&#9638;";
+        if (m.includes("v")) nm += "&#9834;";
+        if (m.includes("f")) nm += "&#9835;";
+      }
+      html += generateListItemHtml("fx", id, nm, "setFX", "", fd);
+    }
+  }
+  gId("fxlist").innerHTML = html || "<div style='padding:8px;color:var(--c-8)'>No effects loaded</div>";
+}
 
+// ── populatePalettes ──────────────────────────────────────────────────
+function populatePalettes() {
+  var list = lJson.slice(); // [[id, name], ...]
+  var defIdx = list.findIndex(e => e[0] === 0);
+  var defEntry = defIdx >= 0 ? list.splice(defIdx, 1)[0] : [0, "Default"];
+  list.sort((a, b) => a[1].localeCompare(b[1]));
+  list.unshift(defEntry);
 
-				
-                log('✓ Read current device state');
-            } catch (error) {
-                log(`⚠️ Error reading state: ${error.message}`);
-            }
-        }
+  var html = "";
+  for (let [id, name] of list) {
+    html += generateListItemHtml("palette", id, name, "setPalette",
+      `<div class="lstIprev" style="${genPalPrevCss(id)}"></div>`);
+  }
+  gId("pallist").innerHTML = html || "<div style='padding:8px;color:var(--c-8)'>No palettes loaded</div>";
+}
 
-        function handleStatusUpdate(event) {
-            const value = event.target.value;
-            const decoder = new TextDecoder();
-            const statusJson = decoder.decode(value);
-            
-            try {
-                const status = JSON.parse(statusJson);
-                log(`📊 Status update: ${statusJson}`);
-                
-                // Update UI based on status
-                if (status.on !== undefined) {
-                    isPowerOn = status.on;
-                    document.getElementById('powerBtn').textContent = isPowerOn ? 'Turn Off' : 'Turn On';
-                }
-                
-                if (status.bri !== undefined) {
-                    document.getElementById('brightnessSlider').value = status.bri;
-                    document.getElementById('brightnessValue').textContent = status.bri;
-                }
-                
-                if (status.color) {
-                    const { r, g, b } = status.color;
-                    document.getElementById('redValue').textContent = r;
-                    document.getElementById('greenValue').textContent = g;
-                    document.getElementById('blueValue').textContent = b;
-                    
-                    const hex = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-                    document.getElementById('colorPicker').value = hex;
-                }
-				
-				        // ✅ Effect (try both styles)
-				if (status.fx !== undefined) {
-					document.getElementById('effectSelect').value = status.fx;
-					log(`🎨 Effect changed to ID: ${status.fx}`);
-				}
-				if (status.seg && status.seg[0] && status.seg[0].fx !== undefined) {
-					document.getElementById('effectSelect').value = status.seg[0].fx;
-					log(`🎨 Effect changed to ID: ${status.seg[0].fx}`);
-				}
+function genPalPrevCss(id) {
+  // Accurate color gradients for all WLED palettes
+  const pals = {
+    0: "linear-gradient(90deg, #fff, #fff)", // Default - white
+    1: "linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3)", // Random Cycle - rainbow
+    2: "linear-gradient(90deg, #ff0000, #ff0000)", // Color 1 - primary color (red as example)
+    3: "linear-gradient(90deg, #ff0000, #00ff00)", // Colors 1&2 - primary and secondary
+    4: "linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff)", // Color Gradient
+    5: "linear-gradient(90deg, #ff0000, #00ff00, #0000ff)", // Colors Only - RGB
+    6: "linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082)", // Party - rainbow without green
+    7: "linear-gradient(90deg, #d3d3d3, #a9a9a9, #808080)", // Cloud - gray-blueish
+    8: "linear-gradient(90deg, #ff0000, #ff4500, #ffa500, #ffff00, #ffffff)", // Lava - fire colors
+    9: "linear-gradient(90deg, #006994, #0099cc, #00bfff, #87ceeb, #ffffff)", // Ocean - blues to white
+    10: "linear-gradient(90deg, #228b22, #32cd32, #7cfc00, #adff2f)", // Forest - greens
+    11: "linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3)", // Rainbow
+    12: "linear-gradient(90deg, #ff0000, #000, #ff7f00, #000, #ffff00, #000, #00ff00, #000, #0000ff, #000)", // Rainbow Bands
+    13: "linear-gradient(90deg, #1e3c72, #2a5298, #ff6b6b, #feca57, #ff9ff3)", // Sunset
+    14: "linear-gradient(90deg, #2d5016, #3a5f0b, #4a7c0c, #8fb339)", // Rivendell - greens
+    15: "linear-gradient(90deg, #008080, #20b2aa, #48d1cc, #afeeee)", // Breeze - teal
+    16: "linear-gradient(90deg, #ff0000, #0000ff)", // Red & Blue
+    17: "linear-gradient(90deg, #ffff00, #ffd700, #ffb347, #ff8c00)", // Yellowout - yellows
+    18: "linear-gradient(90deg, #ff0000, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4)", // Analogous
+    19: "linear-gradient(90deg, #ff006e, #fb5607, #ffbe0b, #8338ec, #3a86ff)", // Splash - vibrant
+    20: "linear-gradient(90deg, #ffb3ba, #ffdfba, #ffffba, #baffc9, #bae1ff)", // Pastel
+    21: "linear-gradient(90deg, #0f2027, #203a43, #2c5364, #ff6b6b, #feca57)", // Sunset 2
+    22: "linear-gradient(90deg, #87ceeb, #b0e0e6, #add8e6, #4682b4)", // Beach - light blues
+    23: "linear-gradient(90deg, #8b4513, #a0522d, #cd853f, #daa520, #f4e4c1)", // Vintage - warm browns
+    24: "linear-gradient(90deg, #134e5e, #71b280, #ffffff, #f39c12)", // Departure
+    25: "linear-gradient(90deg, #1e3c72, #2a5298, #7fb3d5, #b8e6b8)", // Landscape
+    26: "linear-gradient(90deg, #2e7d32, #43a047, #66bb6a, #81c784, #a5d6a7)", // Beech - greens
+    27: "linear-gradient(90deg, #ffffff, #ffc0cb, #98fb98)", // Sherbet - white, pink, mint
+    28: "linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #ffeaa7)", // Hult
+    29: "linear-gradient(90deg, #4ecdc4, #44a08d, #093637, #fff6e5)", // Hult 64
+    30: "linear-gradient(90deg, #1e3c72, #2a5298, #7fb3d5, #ffeb3b)", // Drywet - blue to yellow
+    31: "linear-gradient(90deg, #d4a574, #c19a6b, #a0826d, #8b7355)", // Jul - pastel green/red
+    32: "linear-gradient(90deg, #ffd700, #ffed4e, #fff59d, #ffeb3b, #fff176)", // Grintage - yellows
+    33: "linear-gradient(90deg, #ff6b35, #f77b71, #bd4f6c, #8b4789)", // Rewhi - orange on purple
+    34: "linear-gradient(90deg, #ff0000, #00ff00, #0000ff)", // Tertiary - RGB
+    35: "linear-gradient(90deg, #ffffff, #ffff00, #ff8c00, #ff0000)", // Fire
+    36: "linear-gradient(90deg, #0000ff, #1e90ff, #87ceeb, #ffffff)", // Icefire - blue fire
+    37: "linear-gradient(90deg, #d4a5a5, #daa520, #cd853f, #8b7d6b)", // Cyane - desaturated pastels
+    38: "linear-gradient(90deg, #ffc0cb, #ffb6c1, #ff69b4, #db7093)", // Light Pink - pinks
+    39: "linear-gradient(90deg, #ffffff, #fff8dc, #ffd700, #ff8c00, #8b4513)", // Autumn
+    40: "linear-gradient(90deg, #ffffff, #ff00ff, #0000ff)", // Magenta
+    41: "linear-gradient(90deg, #ff00ff, #ff0000)", // Magred
+    42: "linear-gradient(90deg, #ffff00, #ff00ff, #ff0000)", // Yelmag
+    43: "linear-gradient(90deg, #0000ff, #ffff00)", // Yelblu
+    44: "linear-gradient(90deg, #ff8c00, #808080, #008080)", // Orange & Teal
+    45: "linear-gradient(90deg, #ff6b35, #f77b71, #4ecdc4, #45b7d1, #96ceb4)", // Tiamat
+    46: "linear-gradient(90deg, #0f0f23, #1a1a3e, #2d2d5e, #4a4a8e, #6a6abe)", // April Night
+    47: "linear-gradient(90deg, #ff8c00, #ffa500, #ffb347, #ffd700)", // Orangery
+    48: "linear-gradient(90deg, #ff0000, #ff7f00, #00ff00, #0000ff)", // C9 - Christmas
+    49: "linear-gradient(90deg, #ffb7c5, #ffc0cb, #ffd1dc, #ffe0ec, #ff69b4)", // Sakura - pinks
+    50: "linear-gradient(90deg, #006994, #0099cc, #00bfff, #87ceeb)", // Atlantica - ocean blues
+    51: "linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff)", // C9 2
+    52: "linear-gradient(90deg, #ff0000, #ff4500, #ffa500, #ffff00, #00ff00, #0000ff)", // C9 New
+    53: "linear-gradient(90deg, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000)", // Temperature
+    54: "linear-gradient(90deg, #00ff00, #00cc00, #009900, #006600, #000033)", // Aurora
+    55: "linear-gradient(90deg, #00ff00, #ff00ff, #0000ff)", // Aurora 2
+    56: "linear-gradient(90deg, #ffff00, #ff00ff)", // Retro Clown
+    57: "linear-gradient(90deg, #ff0000, #ff69b4, #00ffff, #ffff00)", // Candy
+    58: "linear-gradient(90deg, #00ffff, #ff00ff)", // Toxy Reaf
+    59: "linear-gradient(90deg, #00ffff, #40e0d0, #00ced1, #48d1cc)", // Fairy Reaf
+    60: "linear-gradient(90deg, #000080, #0000cd, #4169e1, #1e90ff)", // Semi Blue
+    61: "linear-gradient(90deg, #ffffff, #ffb6c1, #ffc0cb, #ff69b4)", // Pink Candy
+    62: "linear-gradient(90deg, #0000ff, #00ffff, #ff0000)", // Red Reaf
+    63: "linear-gradient(90deg, #00ffff, #ffff00, #ffffff)", // Aqua Flash
+    64: "linear-gradient(90deg, #ffff00, #ff0000, #0000ff)", // Yelblu Hot
+    65: "linear-gradient(90deg, #f0f8ff, #e6e6fa, #dcdcdc)", // Lite Light
+    66: "linear-gradient(90deg, #ff0000, #ffffff, #ff0000)", // Red Flash
+    67: "linear-gradient(90deg, #0000ff, #ff0000, #0000ff)", // Blink Red
+    68: "linear-gradient(90deg, #ffff00, #ff0000, #0000ff)", // Red Shift
+    69: "linear-gradient(90deg, #ffff00, #ff8c00, #ff0000)", // Red Tide
+    70: "linear-gradient(90deg, #ff69b4, #ffb6c1, #ffc0cb, #ffd700)" // Candy2
+  };
+  return "background:" + (pals[id] || "linear-gradient(90deg,var(--c-3),var(--c-5))") + ";";
+}
 
-                
-            } catch (error) {
-                log(`⚠️ Error parsing status: ${error.message}`);
-            }
-        }
+function generateListItemHtml(type, id, name, fn, extra, fxd) {
+  var sel = (type==="fx" && id===selectedFx) || (type==="palette" && id===selectedPal);
+  var fxdEsc = (fxd||"").replace(/'/g, "\\'");
+  return `<div class="lstI" id="${type}${id}" data-id="${id}">
+    <div class="lstIcontent${sel?" selected":""}" onclick="${fn}(${id},'${fxdEsc}')">
+      <span class="lstIname">${name}</span>${extra||""}
+    </div>
+  </div>`;
+}
 
-        async function writeCharacteristic(charName, data) {
-            if (!characteristics[charName]) {
-                log(`❌ ${charName} characteristic not available`);
-                return;
-            }
-            
-            try {
-                await characteristics[charName].writeValue(data);
-                log(`✓ Sent ${charName} command`);
-            } catch (error) {
-                log(`❌ Error writing ${charName}: ${error.message}`);
-            }
-        }
+function highlightFx() {
+  document.querySelectorAll("#fxlist .lstIcontent").forEach(el => el.classList.remove("selected"));
+  var el = gId("fx"+selectedFx);
+  if (el) { el.querySelector(".lstIcontent")?.classList.add("selected"); el.scrollIntoView({block:"nearest"}); }
+  if (fxdata.length > selectedFx) updateFxSliders(selectedFx);
+}
+function highlightPal() {
+  document.querySelectorAll("#pallist .lstIcontent").forEach(el => el.classList.remove("selected"));
+  var el = gId("palette"+selectedPal);
+  if (el) { el.querySelector(".lstIcontent")?.classList.add("selected"); el.scrollIntoView({block:"nearest"}); }
+}
 
-        async function togglePower() {
-            isPowerOn = !isPowerOn;
-            const data = new Uint8Array([isPowerOn ? 1 : 0]);
-            await writeCharacteristic('power', data);
-            document.getElementById('powerBtn').textContent = isPowerOn ? 'Turn Off' : 'Turn On';
-        }
+// ── setFX / setPalette ────────────────────────────────────────────────
+function setFX(id, fxd) {
+  selectedFx = id; highlightFx();
+  
+  // Find all selected segments
+  var selectedSegments = [];
+  document.querySelectorAll("[id^='seg'][id$='sel']").forEach(checkbox => {
+    if (checkbox.checked) {
+      var segId = parseInt(checkbox.id.match(/\d+/)[0]);
+      selectedSegments.push(segId);
+    }
+  });
+  
+  // Send effect update to each selected segment
+  if (selectedSegments.length > 0) {
+    var segUpdates = selectedSegments.map(segId => ({ id: segId, fx: id }));
+    var obj = { seg: segUpdates };
+    var ttEl = gId("tt");
+    if (ttEl) obj.transition = Math.round(parseFloat(ttEl.value||0)*10);
+    requestJson(obj);
+  } else {
+    // Fallback to original behavior if no segments selected
+    var obj = { seg: [{ fx: id }] };
+    var ttEl = gId("tt");
+    if (ttEl) obj.transition = Math.round(parseFloat(ttEl.value||0)*10);
+    requestJson(obj);
+  }
+}
+function setPalette(id) {
+  selectedPal = id; highlightPal();
+  
+  // Find all selected segments
+  var selectedSegments = [];
+  document.querySelectorAll("[id^='seg'][id$='sel']").forEach(checkbox => {
+    if (checkbox.checked) {
+      var segId = parseInt(checkbox.id.match(/\d+/)[0]);
+      selectedSegments.push(segId);
+    }
+  });
+  
+  // Send palette update to each selected segment
+  if (selectedSegments.length > 0) {
+    var segUpdates = selectedSegments.map(segId => ({ id: segId, pal: id }));
+    requestJson({ seg: segUpdates });
+  } else {
+    // Fallback to original behavior if no segments selected
+    requestJson({ seg: [{ pal: id }] });
+  }
+}
 
-        async function updateBrightness(value) {
-            document.getElementById('brightnessValue').textContent = value;
-            const data = new Uint8Array([parseInt(value)]);
-            await writeCharacteristic('brightness', data);
-        }
+// ── Effect sliders / options ──────────────────────────────────────────
+function updateFxSliders(id) {
+  if (!fxdata || !fxdata[id]) { [2,3,4].forEach(n => gId("slider"+n)?.classList.add("hide")); return; }
+  var fd = fxdata[id];
+  var eP = fd ? fd.split(";") : [];
+  var slNames = (eP[0]||"").split("@")[1] || "";
+  var sArr = slNames.split(",");
+  [2,3,4].forEach((sn, pi) => {
+    var p = sArr[pi+2];
+    var hide = !p || p.trim() === "";
+    gId("slider"+sn)?.classList.toggle("hide", hide);
+  });
+  var oArr = (eP[1]||"").split(",");
+  [0,1,2].forEach((on, oi) => {
+    var opt = oArr[oi];
+    var hide = !opt || opt.trim() === "";
+    var el = gId("opt"+on);
+    if (el) { el.classList.toggle("hide", hide); if (!hide) el.title = opt; }
+  });
+  gId("fxopt")?.classList.toggle("fade", !oArr.some(o => o && o.trim()));
+}
+function updateFxOpts(s) {
+  if (s.o1 !== undefined) { var c=gId("checkO1"); if(c) c.checked=s.o1; }
+  if (s.o2 !== undefined) { var c=gId("checkO2"); if(c) c.checked=s.o2; }
+  if (s.o3 !== undefined) { var c=gId("checkO3"); if(c) c.checked=s.o3; }
+}
 
-        async function updateColor() {
-            const color = document.getElementById('colorPicker').value;
-            const r = parseInt(color.substr(1, 2), 16);
-            const g = parseInt(color.substr(3, 2), 16);
-            const b = parseInt(color.substr(5, 2), 16);
-            
-            document.getElementById('redValue').textContent = r;
-            document.getElementById('greenValue').textContent = g;
-            document.getElementById('blueValue').textContent = b;
-            
-            const data = new Uint8Array([r, g, b]);
-            await writeCharacteristic('color', data);
-        }
+// ── Filters ───────────────────────────────────────────────────────────
+function initFilters() {}
+function filterFocus(e) {
+  if (e.type==="focus") gId("filters")?.classList.remove("fade");
+  else setTimeout(() => gId("filters")?.classList.add("fade"), 200);
+}
+function preventBlur(e) { e.preventDefault(); }
+function filterFx() {
+  var active = [...document.querySelectorAll("#filters input:checked")].map(c => c.dataset.flt);
+  document.querySelectorAll("#fxlist .lstI").forEach(el => {
+    var nm = el.querySelector(".lstIname")?.innerHTML || "";
+    el.style.display = (active.length===0 || active.every(f => nm.includes(f))) ? "" : "none";
+  });
+}
 
-        async function updateEffect() {
-		    const select = document.getElementById('effectSelect');
-		    const effectId = parseInt(select.value);
-		    const data = new Uint8Array([effectId]);
-		    await writeCharacteristic('effect', data);
-		}
+// ── Color picker ──────────────────────────────────────────────────────
+function selectSlot(i) {
+  csel = i;
+  document.querySelectorAll("#csl .btn").forEach((b,j) => b.classList.toggle("active", j===i));
+  var cs = gId("csl"+i);
+  if (!cs) return;
+  var r=parseInt(cs.dataset.r||0), g=parseInt(cs.dataset.g||0),
+      b=parseInt(cs.dataset.b||0), w=parseInt(cs.dataset.w||0);
+  gId("sliderR").value=r; updateTrail(gId("sliderR"));
+  gId("sliderG").value=g; updateTrail(gId("sliderG"));
+  gId("sliderB").value=b; updateTrail(gId("sliderB"));
+  gId("sliderW").value=w; updateTrail(gId("sliderW"));
+  gId("hexc").value = ("000000"+((r<<16)|(g<<8)|b).toString(16)).slice(-6).toUpperCase();
+  if (cpick) cpick.color.set({r,g,b});
+}
+function updatePSliders() {
+  if (!cpick) return;
+  var c = cpick.color;
+  gId("sliderR").value=c.red;        updateTrail(gId("sliderR"));
+  gId("sliderG").value=c.green;      updateTrail(gId("sliderG"));
+  gId("sliderB").value=c.blue;       updateTrail(gId("sliderB"));
+  gId("sliderH").value=c.hue;        updateTrail(gId("sliderH"));
+  gId("sliderS").value=c.saturation; updateTrail(gId("sliderS"));
+  gId("sliderV").value=c.value;      updateTrail(gId("sliderV"));
+  gId("hexc").value = c.hexString.replace("#","").toUpperCase();
+}
+function setColor(mode) {
+  var r, g, b, w = parseInt(gId("sliderW").value||0);
+  if (mode===1 && cpick) { r=cpick.color.red; g=cpick.color.green; b=cpick.color.blue; }
+  else { r=parseInt(gId("sliderR").value); g=parseInt(gId("sliderG").value); b=parseInt(gId("sliderB").value); }
+  var cs = gId("csl"+csel);
+  cs.dataset.r=r; cs.dataset.g=g; cs.dataset.b=b; cs.dataset.w=w;
+  setCSL(cs);
+  var cols = [[],[],[]];
+  for (var ci=0; ci<3; ci++) {
+    var c = gId("csl"+ci);
+    cols[ci] = [parseInt(c.dataset.r||0), parseInt(c.dataset.g||0), parseInt(c.dataset.b||0), parseInt(c.dataset.w||0)];
+  }
+  
+  // Find all selected segments
+  var selectedSegments = [];
+  document.querySelectorAll("[id^='seg'][id$='sel']").forEach(checkbox => {
+    if (checkbox.checked) {
+      var segId = parseInt(checkbox.id.match(/\d+/)[0]);
+      selectedSegments.push(segId);
+    }
+  });
+  
+  // Send color update to each selected segment
+  if (selectedSegments.length > 0) {
+    var segUpdates = selectedSegments.map(segId => ({ id: segId, col: cols }));
+    requestJson({ seg: segUpdates });
+  } else {
+    // Fallback to original behavior if no segments selected
+    requestJson({ seg: [{ col: cols }] });
+  }
+}
+function fromH()   { if(cpick){cpick.color.set({h:gId("sliderH").value,s:gId("sliderS").value,v:gId("sliderV").value}); updatePSliders();} }
+function fromS()   { fromH(); }
+function fromV()   { fromH(); }
+function fromRgb() { if(cpick){cpick.color.set({r:parseInt(gId("sliderR").value),g:parseInt(gId("sliderG").value),b:parseInt(gId("sliderB").value)}); updatePSliders();} }
+function fromW()   { setColor(0); }
+function fromK()   {
+  var rgb = kelvin2rgb(parseInt(gId("sliderK").value));
+  gId("sliderR").value=rgb[0]; gId("sliderG").value=rgb[1]; gId("sliderB").value=rgb[2];
+  ["sliderR","sliderG","sliderB"].forEach(id => updateTrail(gId(id)));
+  if (cpick) cpick.color.set({r:rgb[0],g:rgb[1],b:rgb[2]});
+}
+function setBalance(v) { requestJson({ seg: [{ cct: parseInt(v) }] }); }
+function fromHex() {
+  var h = gId("hexc").value.replace(/^#/,"");
+  if (h.length < 6) return;
+  var r=parseInt(h.slice(0,2),16), g=parseInt(h.slice(2,4),16), b=parseInt(h.slice(4,6),16);
+  gId("sliderR").value=r; gId("sliderG").value=g; gId("sliderB").value=b;
+  ["sliderR","sliderG","sliderB"].forEach(id => updateTrail(gId(id)));
+  if (cpick) cpick.color.set({r,g,b});
+  setColor(0);
+}
+function hexEnter() { if(event.key==="Enter") fromHex(); }
+function pC(col) {
+  if (col==="rnd") col = "#"+Math.floor(Math.random()*0xFFFFFF).toString(16).padStart(6,"0");
+  gId("hexc").value = col.replace("#","");
+  fromHex();
+}
+function kelvin2rgb(k) {
+  k /= 100;
+  var r = k<=66 ? 255 : Math.min(255,Math.max(0,329.698727446*Math.pow(k-60,-0.1332047592)));
+  var g = k<=66 ? Math.min(255,Math.max(0,99.4708025861*Math.log(k)-161.1195681661))
+                : Math.min(255,Math.max(0,288.1221695283*Math.pow(k-60,-0.0755148492)));
+  var b = k>=66 ? 255 : k<=19 ? 0 : Math.min(255,Math.max(0,138.5177312231*Math.log(k-10)-305.0447927307));
+  return [Math.round(r),Math.round(g),Math.round(b)];
+}
 
+// ── Sliders ───────────────────────────────────────────────────────────
+function setBri()       { requestJson({bri: parseInt(gId("sliderBri").value)}); }
+function setSpeed()     { requestJson({seg:[{sx: parseInt(gId("sliderSpeed").value)}]}); }
+function setIntensity() { requestJson({seg:[{ix: parseInt(gId("sliderIntensity").value)}]}); }
+function setCustom(n)   { var k=["c1","c2","c3"][n-1]; requestJson({seg:[{[k]:parseInt(gId("sliderC"+n).value)}]}); }
+function setOption(n,v) { var k=["o1","o2","o3"][n-1]; requestJson({seg:[{[k]:v}]}); }
 
-        async function updateSpeed(value) {
-            document.getElementById('speedValue').textContent = value;
-            const data = new Uint8Array([parseInt(value)]);
-            await writeCharacteristic('speed', data);
-        }
+// ── Power / toggles ───────────────────────────────────────────────────
+function togglePower() { isOn=!isOn; gId("buttonPower").classList.toggle("on",isOn); requestJson({on:isOn}); }
+function toggleNl()    { nlA=!nlA; gId("buttonNl").classList.toggle("on",nlA); requestJson({nl:{on:nlA,dur:nlDur,tbri:nlTar,mode:nlMode}}); }
+function toggleSync()  { syncSend=!syncSend; gId("buttonSync").classList.toggle("on",syncSend); requestJson({udpn:{send:syncSend,recv:true}}); }
+function toggleInfo()  { isInfo=!isInfo; gId("info").classList.toggle("open",isInfo); if(isInfo) requestJson(); }
+function toggleNodes() { isNodes=!isNodes; gId("nodes").classList.toggle("open",isNodes); }
+function toggleLiveview() { showToast("Live view not available over BLE"); }
+function setLor(v)     { requestJson({lor:v}); gId("rover").style.transform="translateY(100%)"; gId("roverstar").style.display="none"; }
+function cnfReset()    { if(confirm("Reboot WLED?")) requestJson({rb:true}); }
+function loadNodes()   { gId("kn").innerHTML = "<p style='color:var(--c-8)'>Node discovery not available over BLE</p>"; }
 
-        async function updateIntensity(value) {
-            document.getElementById('intensityValue').textContent = value;
-            const data = new Uint8Array([parseInt(value)]);
-            await writeCharacteristic('intensity', data);
-        }
+// ── Segments ──────────────────────────────────────────────────────────
+function populateSegments(s) {
+  var cn=""; var li=lastinfo;
+  segCount=0; lowestUnused=0; lSeg=0;
+  for (var inst of (s.seg||[])) {
+    segCount++;
+    var i = parseInt(inst.id);
+    if (i===lowestUnused) lowestUnused=i+1;
+    if (i>lSeg) lSeg=i;
+    var sg = gId("seg"+i);
+    var exp = sg ? sg.classList.contains("expanded") : (i===0 && cfg.comp.segexp);
+    var staX=inst.start, stoX=inst.stop;
+    cn+=`<div class="seg lstI ${i==s.mainseg&&!simplifiedUI?"selected":""} ${exp?"expanded":""}" id="seg${i}">
+      <label class="check schkl ${simplifiedUI?"hide":""}">
+        <input type="checkbox" id="seg${i}sel" onchange="selSeg(${i})" ${inst.sel?"checked":""}><span class="checkmark"></span>
+      </label>
+      <div class="segname ${simplifiedUI?"hide":""}" onclick="selSegEx(${i})">
+        <i class="icons frz" id="seg${i}frz" onclick="event.preventDefault();tglFreeze(${i})">&#x${inst.frz?"e0e8":"e325"};</i>
+        ${inst.n||"Segment "+i}
+        <i class="icons edit-icon flr ${simplifiedUI?"hide":""}" onclick="tglSegn(${i})">&#xe2c6;</i>
+      </div>
+      <i class="icons e-icon flr ${simplifiedUI?"hide":""}" id="sege${i}" onclick="expand(${i})">&#xe395;</i>
+      <div class="segin ${simplifiedUI?"hide":""}" id="seg${i}in">
+        <input type="text" class="ptxt" id="seg${i}t" autocomplete="off" maxlength="32" value="${inst.n||""}" placeholder="Enter name…">
+        <table class="infot segt">
+          <tr><td>Start LED</td><td>${cfg.comp.seglen?"LED count":"Stop LED"}</td><td>Offset</td></tr>
+          <tr>
+            <td><input class="segn" id="seg${i}s" type="number" min="0" max="${ledCount-1}" value="${staX}" oninput="updateLen(${i})" onkeydown="segEnter(${i})"></td>
+            <td><input class="segn" id="seg${i}e" type="number" min="0" max="${ledCount}" value="${stoX-(cfg.comp.seglen?staX:0)}" oninput="updateLen(${i})" onkeydown="segEnter(${i})"></td>
+            <td><input class="segn" id="seg${i}of" type="number" value="${inst.of||0}" oninput="updateLen(${i})"></td>
+          </tr>
+          <tr><td>Grouping</td><td>Spacing</td><td></td></tr>
+          <tr>
+            <td><input class="segn" id="seg${i}grp" type="number" min="1" max="255" value="${inst.grp||1}" onkeydown="segEnter(${i})"></td>
+            <td><input class="segn" id="seg${i}spc" type="number" min="0" max="255" value="${inst.spc||0}" onkeydown="segEnter(${i})"></td>
+            <td><button class="btn btn-xs" onclick="setSeg(${i})"><i class="icons btn-icon">&#xe390;</i></button></td>
+          </tr>
+        </table>
+        <div class="h bp" id="seg${i}len"></div>
+        <label class="check revchkl"><input type="checkbox" id="seg${i}rev" onchange="setRev(${i})" ${inst.rev?"checked":""}>Reverse<span class="checkmark"></span></label>
+        <label class="check revchkl"><input type="checkbox" id="seg${i}mi" onchange="setMi(${i})" ${inst.mi?"checked":""}>Mirror<span class="checkmark"></span></label>
+        <div class="del"><button class="btn btn-xs" id="segd${i}" onclick="delSeg(${i})"><i class="icons btn-icon">&#xe037;</i></button></div>
+      </div>
+      <div class="sbs" id="segp${i}">
+        <i class="icons slider-icon ${inst.on?"on":"off"}" id="seg${i}pwr" onclick="setSegPwr(${i})">&#xe08f;</i>
+        <div class="sliderwrap il">
+          <input id="seg${i}bri" class="noslide" onchange="setSegBri(${i})" oninput="updateTrail(this)" max="255" min="1" type="range" value="${inst.bri||255}">
+          <div class="sliderdisplay"></div>
+        </div>
+      </div>
+    </div>`;
+  }
+  gId("segcont").innerHTML = cn;
+  var noNew = lowestUnused >= maxSeg;
+  resetUtil(noNew);
+  for (var i=0; i<=lSeg; i++) { if (!gId("seg"+i)) continue; updateLen(i); updateTrail(gId("seg"+i+"bri")); }
+  if (segCount < 2) gId("segd"+lSeg)?.classList.add("hide");
+  gId("segutil2").style.display = segCount > 1 ? "block" : "none";
+}
 
-        async function applyPreset() {
-            const presetId = parseInt(document.getElementById('presetInput').value);
-            const data = new Uint8Array([presetId]);
-            await writeCharacteristic('preset', data);
-        }
+function expand(i)    { gId("seg"+i)?.classList.toggle("expanded"); }
+function selSeg(i)    { requestJson({seg:[{id:i,sel:gId("seg"+i+"sel").checked}]}); }
+function selSegEx(i)  { document.querySelectorAll("[id^='seg'][id$='sel']").forEach(c=>c.checked=false); gId("seg"+i+"sel").checked=true; selSeg(i); }
+function tglFreeze(i) { var cur=gId("seg"+i+"frz"); requestJson({seg:[{id:i,frz:cur&&cur.innerHTML.includes("e325")?true:false}]}); }
+function tglSegn(i)   { var el=gId("seg"+i+"t"); if(el){var p=el.closest(".segin");if(p){p.style.display=p.style.display==="none"?"block":"none";}} }
+function updateLen(i) {
+  var el=gId("seg"+i+"len"); if(!el) return;
+  var s=parseInt(gId("seg"+i+"s")?.value||0), e=parseInt(gId("seg"+i+"e")?.value||0);
+  el.innerHTML = "LED count: "+(cfg.comp.seglen?e:e-s)+" ("+s+" to "+(cfg.comp.seglen?s+e:e)+")";
+}
+function segEnter(i)  { if(event.key==="Enter") setSeg(i); }
+function setSeg(i) {
+  var s=parseInt(gId("seg"+i+"s")?.value||0), e=parseInt(gId("seg"+i+"e")?.value||0);
+  var of=parseInt(gId("seg"+i+"of")?.value||0), grp=parseInt(gId("seg"+i+"grp")?.value||1), spc=parseInt(gId("seg"+i+"spc")?.value||0);
+  var nm = gId("seg"+i+"t")?.value||"";
+  if (cfg.comp.seglen) e = s+e;
+  requestJson({seg:[{id:i,start:s,stop:e,of:of,grp:grp,spc:spc,n:nm}]});
+}
+function setRev(i)    { requestJson({seg:[{id:i,rev:gId("seg"+i+"rev").checked}]}); }
+function setMi(i)     { requestJson({seg:[{id:i,mi:gId("seg"+i+"mi").checked}]}); }
+function delSeg(i)    { requestJson({seg:[{id:i,stop:0}]}); setTimeout(requestJson, 400); }
+function rSegs()      { requestJson({seg:[{id:0,start:0,stop:ledCount,sel:true}]}); setTimeout(requestJson, 400); }
+function setSegPwr(i) { var cur=gId("seg"+i+"pwr"); requestJson({seg:[{id:i,on:cur&&cur.classList.contains("off")}]}); }
+function setSegBri(i) { requestJson({seg:[{id:i,bri:parseInt(gId("seg"+i+"bri").value)}]}); }
+function resetUtil(noNew=false) {
+  gId("segutil").innerHTML = noNew ? "" : `<button class="btn btn-s" onclick="addSeg()">Add segment</button>`;
+}
+function addSeg() {
+  var maxStop = (lastinfo.seg||[]).reduce((m,s)=>Math.max(m,s.stop||0),0);
+  requestJson({seg:[{id:lowestUnused,start:maxStop,stop:ledCount,sel:true}]});
+  setTimeout(requestJson, 400);
+}
 
-        async function sendJsonCommand() {
-            const jsonCommand = document.getElementById('jsonCommand').value.trim();
-            if (!jsonCommand) {
-                log('❌ JSON command is empty');
-                return;
-            }
-            
-            try {
-                JSON.parse(jsonCommand); // Validate JSON
-                const encoder = new TextEncoder();
-                const data = encoder.encode(jsonCommand);
-                await writeCharacteristic('jsonCmd', data);
-            } catch (error) {
-                log(`❌ Invalid JSON: ${error.message}`);
-            }
-        }
+// ── Presets ───────────────────────────────────────────────────────────
+function loadPresets(callback=null) {
+  BLE.getPresets()
+    .then(json => { handlePresetsResponse(json); })
+    .catch(() => { presetError(false); })
+    .finally(() => { if (callback) callback(); });
+}
+function populatePresets() {
+  if (!pJson) { setTimeout(loadPresets, 250); return; }
+  delete pJson["0"];
+  var cn="", pQL=[];
+  pNum = 0;
+  var arr = Object.entries(pJson).sort((a,b)=>parseInt(a[0])-parseInt(b[0]));
+  for (var [key, val] of arr) {
+    if (!isObj(val)) continue;
+    var i=parseInt(key), qll=val.ql;
+    if (qll) pQL.push([i,qll,pName(i)]);
+    cn += `<div class="pres lstI" id="p${i}o">`;
+    if (cfg.comp.pid) cn += `<div class="pid">${i}</div>`;
+    cn += `<div class="pname lstIname" onclick="setPreset(${i})">${pName(i)}
+      <i class="icons edit-icon flr" onclick="tglPresetEdit(${i})">&#xe2c6;</i></div>
+      <i class="icons e-icon flr" onclick="expandPreset(${i})">&#xe395;</i>
+      <div class="presin" id="pseg${i}"></div>
+    </div>`;
+    pNum++;
+  }
+  gId("pcont").innerHTML = cn;
+  if (!pNum) presetError(true);
+  populateQL(pQL);
+  updatePA();
+  try { localStorage.setItem("wledP", JSON.stringify(pJson)); } catch(e){}
+}
+function cmpP(a,b) { return parseInt(a[0])-parseInt(b[0]); }
+function pName(i)  { return pJson&&pJson[i]&&pJson[i].n ? pJson[i].n : "Preset "+i; }
+function isPlaylist(i) { return isNumeric(i)?pJson[i]?.playlist?.ps:i?.playlist?.ps; }
+function getLowestUnusedP() { var l=1; for(var k in pJson) if(k==l) l++; return Math.min(l,250); }
+function presetError(empty) {
+  gId("pcont").innerHTML = `<div class="pres c" style="padding:8px;margin:8px auto;max-width:280px">
+    ${empty?"You have no presets yet.":"Could not load presets."}</div>`;
+}
+function populateQL(pQL=[]) {
+  var cn = "";
+  if (pQL.length) {
+    pQL.sort((a,b)=>a[0]-b[0]);
+    cn += `<p class="labels hd">Quick load</p>`;
+    for (var [id,ql,name] of pQL)
+      cn += `<button class="btn btn-xs psts" id="p${id}qlb" title="${name}" onclick="setPreset(${id})">${ql}</button>`;
+    gId("pql").classList.add("expanded");
+  } else {
+    gId("pql").classList.remove("expanded");
+  }
+  gId("pql").innerHTML = cn;
+}
+function setPreset(i)       { requestJson({ps:i}); currentPreset=i; updatePA(); }
+function expandPreset(i)    { gId("p"+i+"o")?.classList.toggle("expanded"); }
+function tglPresetEdit(i)   { /* inline edit not implemented */ }
+function updatePA() {
+  document.querySelectorAll(".psts").forEach(b => {
+    var i = parseInt(b.id.replace(/\D/g,""));
+    b.classList.toggle("active", i===currentPreset);
+  });
+  document.querySelectorAll(".pres").forEach(b => {
+    var i = parseInt((b.id||"").replace(/\D/g,""));
+    b.classList.toggle("selected", i===currentPreset);
+  });
+}
+function resetPUtil() {
+  gId("putil").innerHTML = `<button class="btn btn-s" onclick="saveP()">Save preset</button>`;
+}
+function saveP() {
+  var id = getLowestUnusedP();
+  var nm = prompt("Preset name:", "Preset "+id);
+  if (!nm) return;
+  requestJson({psave:id, n:nm, includeState:true});
+  setTimeout(loadPresets, 600);
+}
 
-        // Check for Web Bluetooth support
-        if (!navigator.bluetooth) {
-            log('❌ Web Bluetooth is not supported in this browser');
-            document.getElementById('connectBtn').disabled = true;
-            document.getElementById('connectBtn').textContent = 'Web Bluetooth Not Supported';
-        } else {
-            log('✓ Web Bluetooth is supported');
-        }
-    </script>
+// ── Search / clean ────────────────────────────────────────────────────
+function search(inp, listId) {
+  var q = inp.value.toLowerCase();
+  var cl = inp.nextElementSibling;
+  if (cl && cl.classList.contains("clear-icon")) cl.style.display = q ? "block" : "none";
+  document.querySelectorAll("#"+listId+" .lstI").forEach(el => {
+    var nm = el.querySelector(".lstIname")?.textContent?.toLowerCase()||"";
+    el.style.display = (!q || nm.includes(q)) ? "" : "none";
+  });
+}
+function clean(icon) {
+  var inp = icon.parentElement.querySelector('input[type="text"]');
+  if (inp) {
+    inp.value = ""; icon.style.display = "none";
+    var list = icon.parentElement.nextElementSibling;
+    if (list) document.querySelectorAll("#"+list.id+" .lstI").forEach(el => el.style.display="");
+  }
+}
+
+// ── Misc ──────────────────────────────────────────────────────────────
+function tooltip() {}
+function getURL(p) { return p; }
+
+// ── Window init ───────────────────────────────────────────────────────
+window.addEventListener("load", () => {
+  _C = gId("_C");
+  if (!navigator.bluetooth) {
+    gId("ble-status").textContent = "⚠ Web Bluetooth not supported. Use Chrome or Edge on desktop/Android.";
+    gId("ble-status").className = "err";
+    gId("btn-ble-connect").disabled = true;
+  }
+  // Restore theme / layout immediately so the overlay looks right
+  try {
+    var sett = localStorage.getItem("wledUiCfg");
+    if (sett) cfg = mergeDeep(cfg, JSON.parse(sett));
+  } catch(e){}
+  cTheme(cfg.theme.base === "light");
+});
+</script>
 </body>
 </html>
