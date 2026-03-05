@@ -915,7 +915,7 @@ const BLE = (() => {
     updateBar();
     setOverlayStatus("Connected ✓", "ok");
     document.getElementById("ble-overlay").classList.add("hidden");
-    setTimeout(onLoad, 150);
+    setTimeout(onLoad, 1500);
   }
 
   function disconnect() {
@@ -1536,8 +1536,7 @@ function onLoad() {
 
   // BLE/serial: WLED only responds to {"v":true} (state+info). Request that once;
   // dispatch() will populate effects/palettes/fxdata/presets from info (synthetic lists).
-  // Add delay for external apps to settle before requesting state
-  setTimeout(() => requestJson(), 500);
+  requestJson();
 
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && new Date() - lastUpdate > 3000) requestJson();
