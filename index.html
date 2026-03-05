@@ -881,24 +881,16 @@ const BLE = (() => {
         return;
       }
       
-      // Try alternative filtering for iOS apps that don't support name filtering
+      // Any other error (no devices found, etc.) - show fallback with all devices
       try {
         device = await navigator.bluetooth.requestDevice({
-          filters: [{ namePrefix: 'WLED' }],
+          acceptAllDevices: true,
           optionalServices: [BLE_CFG.SERVICE]
         });
       } catch (e2) {
-        // Final fallback: show all devices
-        try {
-          device = await navigator.bluetooth.requestDevice({
-            acceptAllDevices: true,
-            optionalServices: [BLE_CFG.SERVICE]
-          });
-        } catch (e3) {
-          setOverlayStatus("Cancelled.", "err");
-          document.getElementById("btn-ble-connect").disabled = false;
-          return;
-        }
+        setOverlayStatus("Cancelled.", "err");
+        document.getElementById("btn-ble-connect").disabled = false;
+        return;
       }
     }
 
@@ -923,28 +915,7 @@ const BLE = (() => {
     updateBar();
     setOverlayStatus("Connected ✓", "ok");
     document.getElementById("ble-overlay").classList.add("hidden");
-    
-    // Send initial state request immediately and retry if needed
-    setTimeout(() => {
-      console.log("Sending initial state request...");
-      requestJson();
-      
-      // Retry if no response after 2 seconds
-      setTimeout(() => {
-        if (!lastinfo || Object.keys(lastinfo).length === 0) {
-          console.log("Retrying state request...");
-          requestJson();
-          
-          // Final retry after another 2 seconds
-          setTimeout(() => {
-            if (!lastinfo || Object.keys(lastinfo).length === 0) {
-              console.log("Final retry state request...");
-              requestJson();
-            }
-          }, 2000);
-        }
-      }, 2000);
-    }, 500);
+    setTimeout(onLoad, 150);
   }
 
   function disconnect() {
@@ -1019,15 +990,11 @@ const BLE = (() => {
 
     // No STX — plain JSON (single packet or WLED serial line)
     rxBuf += dec.decode(bytes);
-    console.debug("BLE RX raw:", rxBuf.slice(0, 100));
     let nl;
     while ((nl = rxBuf.indexOf("\n")) !== -1) {
       const line = rxBuf.slice(0, nl).trim();
       rxBuf = rxBuf.slice(nl + 1);
-      if (line) {
-        console.debug("BLE RX line:", line);
-        parseAndDispatch(line);
-      }
+      if (line) parseAndDispatch(line);
     }
     // Also try to parse what we have if it looks like complete JSON
     // (WLED serial responses don't always end with \n over BLE)
@@ -1230,28 +1197,20 @@ const BLE = (() => {
   // WLED serial API accepts JSON objects without a trailing newline,
   // and the firmware's println() adds the required line terminator.
   async function send(obj) {
-    if (!connected || !writeChar) { 
-      console.error("BLE send failed: not connected or writeChar missing");
-      showToast("Not connected", true); 
-      return false; 
-    }
+    if (!connected || !writeChar) { showToast("Not connected", true); return false; }
     const str = JSON.stringify(obj);
     console.debug("BLE TX:", str.slice(0, 120));
     flashTx();
     try {
       // Write without response for speed; use withResponse if your MTU needs it
       await writeChar.writeValueWithoutResponse(enc.encode(str));
-      console.debug("BLE TX successful");
       return true;
     } catch (e) {
-      console.warn("BLE writeWithoutResponse failed:", e);
       // Fallback to write with response
       try {
         await writeChar.writeValue(enc.encode(str));
-        console.debug("BLE TX with response successful");
         return true;
       } catch (e2) {
-        console.error("BLE write error:", e2);
         showToast("BLE write error: " + e2.message, true);
         return false;
       }
@@ -1283,7 +1242,7 @@ const BLE = (() => {
   //   Sending any state obj  → WLED applies + echoes back updated state
 
   async function getState() {
-    const p = waitFor("state", 10000); // Extended timeout for initial request
+    const p = waitFor("state");
     await send({ v: true });
     return p;
   }
@@ -1549,6 +1508,9 @@ function onLoad() {
     if (sett) cfg = mergeDeep(cfg, JSON.parse(sett));
   } catch(e){}
 
+  // Request initial state from WLED device
+  requestJson();
+
   // Color picker
   if (typeof iro !== "undefined") {
     cpick = new iro.ColorPicker("#picker", {
@@ -1679,19 +1641,14 @@ function handleJsonResponse(json) {
 
 // ── requestJson — central command (replaces HTTP /json/state) ────────
 var pendingRequest = false;
-var showErrorCount = 0;
 async function requestJson(payload=null) {
-  if (!BLE.isConnected()) {
-    return;
-  }
+  if (!BLE.isConnected()) return;
   if (payload !== null) {
     // Apply state change; WLED echoes back updated state automatically
     await BLE.postState(payload);
     return;
   }
-  if (pendingRequest) {
-    return;
-  }
+  if (pendingRequest) return;
   pendingRequest = true;
   gId("cv").style.opacity = 0.3;
   try {
@@ -1701,18 +1658,11 @@ async function requestJson(payload=null) {
     if (resp && resp.state && resp.info) {
       handleInfoResponse(resp.info);
       handleJsonResponse(resp.state);
-      showErrorCount = 0; // Reset error count on success
     } else if (resp) {
       handleJsonResponse(resp);
-      showErrorCount = 0;
     }
   } catch(e) {
-    showErrorCount++;
-    // Only show error after 3 failed attempts to avoid spamming
-    if (showErrorCount >= 3) {
-      showToast("Waiting for WLED response...", true);
-      showErrorCount = 0; // Reset after showing
-    }
+    showToast("No response from WLED", true);
   }
   gId("cv").style.opacity = 0;
   pendingRequest = false;
