@@ -1009,11 +1009,15 @@ const BLE = (() => {
 
     // No STX — plain JSON (single packet or WLED serial line)
     rxBuf += dec.decode(bytes);
+    console.debug("BLE RX raw:", rxBuf.slice(0, 100));
     let nl;
     while ((nl = rxBuf.indexOf("\n")) !== -1) {
       const line = rxBuf.slice(0, nl).trim();
       rxBuf = rxBuf.slice(nl + 1);
-      if (line) parseAndDispatch(line);
+      if (line) {
+        console.debug("BLE RX line:", line);
+        parseAndDispatch(line);
+      }
     }
     // Also try to parse what we have if it looks like complete JSON
     // (WLED serial responses don't always end with \n over BLE)
@@ -1216,20 +1220,28 @@ const BLE = (() => {
   // WLED serial API accepts JSON objects without a trailing newline,
   // and the firmware's println() adds the required line terminator.
   async function send(obj) {
-    if (!connected || !writeChar) { showToast("Not connected", true); return false; }
+    if (!connected || !writeChar) { 
+      console.error("BLE send failed: not connected or writeChar missing");
+      showToast("Not connected", true); 
+      return false; 
+    }
     const str = JSON.stringify(obj);
     console.debug("BLE TX:", str.slice(0, 120));
     flashTx();
     try {
       // Write without response for speed; use withResponse if your MTU needs it
       await writeChar.writeValueWithoutResponse(enc.encode(str));
+      console.debug("BLE TX successful");
       return true;
     } catch (e) {
+      console.warn("BLE writeWithoutResponse failed:", e);
       // Fallback to write with response
       try {
         await writeChar.writeValue(enc.encode(str));
+        console.debug("BLE TX with response successful");
         return true;
       } catch (e2) {
+        console.error("BLE write error:", e2);
         showToast("BLE write error: " + e2.message, true);
         return false;
       }
@@ -1658,26 +1670,38 @@ function handleJsonResponse(json) {
 // ── requestJson — central command (replaces HTTP /json/state) ────────
 var pendingRequest = false;
 async function requestJson(payload=null) {
-  if (!BLE.isConnected()) return;
+  if (!BLE.isConnected()) {
+    console.warn("requestJson: not connected");
+    return;
+  }
   if (payload !== null) {
     // Apply state change; WLED echoes back updated state automatically
+    console.debug("requestJson: sending state change", payload);
     await BLE.postState(payload);
     return;
   }
-  if (pendingRequest) return;
+  if (pendingRequest) {
+    console.warn("requestJson: request already pending");
+    return;
+  }
   pendingRequest = true;
   gId("cv").style.opacity = 0.3;
   try {
     // {"v":true} makes WLED return {"state":{...},"info":{...}} merged.
     // classify() splits them and routes each to its handler.
+    console.debug("requestJson: requesting state");
     const resp = await BLE.getState();
+    console.debug("requestJson: got response", resp);
     if (resp && resp.state && resp.info) {
       handleInfoResponse(resp.info);
       handleJsonResponse(resp.state);
     } else if (resp) {
       handleJsonResponse(resp);
+    } else {
+      console.warn("requestJson: no response data");
     }
   } catch(e) {
+    console.error("requestJson error:", e);
     showToast("No response from WLED", true);
   }
   gId("cv").style.opacity = 0;
